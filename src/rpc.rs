@@ -90,7 +90,7 @@ pub fn client() -> (tokio::runtime::Runtime, Client<Runtime>) {
 
 pub async fn sub_blocks(client: Client<Runtime>, mut sender: mpsc::UnboundedSender<Data>) {
     let stream = client.subscribe_blocks().compat().await;
-    let typed_stream = stream.unwrap().into_inner().compat();
+    let typed_stream = stream.unwrap().compat();
     typed_stream.for_each(|x| {
         // println!("New Head");
         // println!("{:?}", x);
@@ -101,7 +101,7 @@ pub async fn sub_blocks(client: Client<Runtime>, mut sender: mpsc::UnboundedSend
 
 pub async fn sub_finalized(client: Client<Runtime>, mut sender: mpsc::UnboundedSender<Data>) {
     let stream = client.subscribe_finalized_blocks().compat().await;
-    let typed_stream = stream.unwrap().into_inner().compat();
+    let typed_stream = stream.unwrap().compat();
     typed_stream.for_each(|x| {
         // println!("New Finalized Block");
         // println!("{:?}", x);
