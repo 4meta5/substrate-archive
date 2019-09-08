@@ -26,11 +26,14 @@ struct ArchiveError {
 pub enum ErrorKind {
     // this is a shit error message
     #[fail(display = "Value not found during execution of the RPC")]
-    ValueNotPresent
+    ValueNotPresent,
+    #[fail(display = "Encountered error during RPC execution")]
+    RPCError
+
 }
 
 impl Fail for ArchiveError {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
     fn backtrace(&self) -> Option<&Backtrace> {
