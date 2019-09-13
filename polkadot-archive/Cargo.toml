@@ -8,10 +8,8 @@ edition = "2018"
 
 [dependencies]
 substrate-archive = { path = "../" }
-substrate-subxt = { git = "https://github.com/insipx/substrate-subxt", branch = "master" }
-substrate-primitives = { git = "https://github.com/paritytech/substrate/", package = "substrate-primitives" }
+polkadot-runtime = { git = "https://github.com/paritytech/polkadot", package = "polkadot-runtime", tag = "v0.5.1" }
 node-primitives = { git = "https://github.com/paritytech/substrate/", package = "node-primitives"}
 sr-primitives = { git = "https://github.com/paritytech/substrate/", package = "sr-primitives" }
-node-runtime = { git = "https://github.com/paritytech/substrate", package = "node-runtime" }
-srml-system = { git = "https://github.com/paritytech/substrate", package = "srml-system" }
-srml-balances = { git = "https://github.com/paritytech/substrate", package = "srml-balances" }
+
+

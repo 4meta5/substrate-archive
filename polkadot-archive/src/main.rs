@@ -16,58 +16,21 @@
 
 //! Specify types for a specific Blockchain -- E.G Kusama/Polkadot and run the archive node with these types
 
-use substrate_subxt::srml::{balances::Balances, contracts::Contracts, system::System};
-use sr_primitives::OpaqueExtrinsic as UncheckedExtrinsic;
-use sr_primitives::generic::{Era, SignedBlock /* Header */};
-use sr_primitives::traits::{StaticLookup/* BlakeTwo256 */ };
+//use substrate_subxt::srml::{balances::Balances, contracts::Contracts, system::System};
+use substrate_archive::types::System;
+use runtime_primitives::{
+    OpaqueExtrinsic as UncheckedExtrinsic,
+    generic::{Era, SignedBlock},
+    traits::StaticLookup
+};
 use node_primitives::{Hash, Header, Block}; // Block == Block<Header, UncheckedExtrinsic>
-
+use polkadot_runtime::Runtime;
 
 
 fn main() {
     substrate_archive::run::<Runtime>();
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Runtime;
-
 impl System for Runtime {
-    type Index = <node_runtime::Runtime as srml_system::Trait>::Index;
-    type BlockNumber = <node_runtime::Runtime as srml_system::Trait>::BlockNumber;
-    type Hash = <node_runtime::Runtime as srml_system::Trait>::Hash;
-    type Hashing = <node_runtime::Runtime as srml_system::Trait>::Hashing;
-    type AccountId = <node_runtime::Runtime as srml_system::Trait>::AccountId;
-    type Lookup = <node_runtime::Runtime as srml_system::Trait>::Lookup;
-    type Header = <node_runtime::Runtime as srml_system::Trait>::Header; // same as DOT
-    type Event = <node_runtime::Runtime as srml_system::Trait>::Event;
-
-    type SignedExtra = (
-        srml_system::CheckVersion<node_runtime::Runtime>,
-        srml_system::CheckGenesis<node_runtime::Runtime>,
-        srml_system::CheckEra<node_runtime::Runtime>,
-        srml_system::CheckNonce<node_runtime::Runtime>,
-        srml_system::CheckWeight<node_runtime::Runtime>,
-        srml_balances::TakeFees<node_runtime::Runtime>,
-    );
-    fn extra(nonce: Self::Index) -> Self::SignedExtra {
-        (
-            srml_system::CheckVersion::<node_runtime::Runtime>::new(),
-            srml_system::CheckGenesis::<node_runtime::Runtime>::new(),
-            srml_system::CheckEra::<node_runtime::Runtime>::from(Era::Immortal),
-            srml_system::CheckNonce::<node_runtime::Runtime>::from(nonce),
-            srml_system::CheckWeight::<node_runtime::Runtime>::new(),
-            srml_balances::TakeFees::<node_runtime::Runtime>::from(0),
-        )
-    }
+    type Header = Runtime::Header;
 }
-
-impl Balances for Runtime {
-    type Balance = <node_runtime::Runtime as srml_balances::Trait>::Balance;
-}
-
-impl Contracts for Runtime {}
-
-type Index = <Runtime as System>::Index;
-type AccountId = <Runtime as System>::AccountId;
-type Address = <<Runtime as System>::Lookup as StaticLookup>::Source;
-type Balance = <Runtime as Balances>::Balance;

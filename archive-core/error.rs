@@ -15,36 +15,24 @@
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
 use failure::Fail;
-use substrate_subxt::Error as SubxtError;
+// use substrate_subxt::Error as SubxtError;
 use futures::sync::mpsc::SendError;
 use jsonrpc_core_client::RpcError as JsonRpcError;
+use std::io::Error as IoError;
+use url::ParseError;
 
 use crate::types::Data;
 
 #[derive(Debug, Fail)]
 pub enum Error {
-    /// An error originating from Subxt
-    /// Data Provided is the error message of the underlying error
-    #[fail(display = "Subxt: {}", _0)]
-    Subxt(String),
     #[fail(display = "Could not send to parent process {}", _0)]
     Send(String),
     #[fail(display = "RPC Error: {}", _0)]
-    Rpc(#[fail(cause)] JsonRpcError)
-
-}
-
-impl From<SubxtError> for Error {
-    fn from(err: SubxtError) -> Error {
-        match err {
-            SubxtError::Codec(e) => Error::Subxt(e.to_string()),
-            SubxtError::Io(e) => Error::Subxt(e.to_string()),
-            SubxtError::Rpc(e) => Error::Subxt(e.to_string()),
-            SubxtError::SecretString(e) => Error::Subxt(format!("{:?}", e)),
-            SubxtError::Metadata(e) => Error::Subxt(format!("{:?}", e)),
-            SubxtError::Other(s) => Error::Subxt(s),
-        }
-    }
+    Rpc(#[fail(cause)] JsonRpcError),
+    #[fail(display = "Io: {}", _0)]
+    Io(#[fail(cause)] IoError),
+    #[fail(display = "Parse: {}", _0)]
+    Parse(#[fail(cause)] ParseError)
 }
 
 impl<T> From<SendError<T>> for Error {
@@ -58,6 +46,19 @@ impl From<JsonRpcError> for Error {
         Error::Rpc(err)
     }
 }
+
+impl From<IoError> for Error {
+    fn from(err: IoError) -> Error {
+        Error::Io(err)
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(err: ParseError) -> Error {
+        Error::Parse(err)
+    }
+}
+
 /*
 impl Error {
 

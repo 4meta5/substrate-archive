@@ -19,10 +19,14 @@ futures = "0.1"
 tokio = "0.1"
 failure = "0.1"
 crossbeam = "0.7"
-substrate-subxt = { git = "https://github.com/insipx/substrate-subxt", branch = "insipx/add-block-method" }
+url = "1.7"
+serde = { version = "1.0", features = ["derive"] }
+# substrate-subxt = { git = "https://github.com/insipx/substrate-subxt", branch = "insipx/add-block-method" }
 node-primitives = { git = "https://github.com/paritytech/substrate/", package = "node-primitives"}
 substrate-rpc = { git = "https://github.com/paritytech/substrate/", package = "substrate-rpc" }
+srml-system = { git = "https://github.com/paritytech/substrate/", package = "srml-system"}
 substrate-primitives = { git = "https://github.com/paritytech/substrate/", package = "substrate-primitives" }
-sr-primitives = { git = "https://github.com/paritytech/substrate/", package = "sr-primitives" }
+runtime-primitives = { git = "https://github.com/paritytech/substrate/", package = "sr-primitives" }
 jsonrpc-core-client = { version = "13.0", features = ["ws"] }
 substrate-rpc-api = { git = "https://github.com/paritytech/substrate/", package = "substrate-rpc-api" }
+runtime_support = { git = "https://github.com/paritytech/substrate/", package = "srml-support" }

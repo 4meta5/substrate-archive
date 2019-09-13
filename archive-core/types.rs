@@ -14,19 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
-use substrate_subxt::srml::system::System;
-use sr_primitives::OpaqueExtrinsic as UncheckedExtrinsic;
-use sr_primitives::generic::{Block as BlockT, SignedBlock};
+use srml_system::Trait;
+use runtime_primitives::{
+    OpaqueExtrinsic as UncheckedExtrinsic,
+    generic::{Block as BlockT, SignedBlock},
+    traits::{Header}
+};
+use runtime_support::Parameter;
+use serde::de::DeserializeOwned;
+use substrate_rpc_api::chain::number::NumberOrHex;
 use substrate_primitives::storage::StorageChangeSet;
 
 
-type Block<T> = SignedBlock<BlockT<<T as System>::Header, UncheckedExtrinsic>>;
+pub type BlockNumber<T> = NumberOrHex<<T as Trait>::BlockNumber>;
+pub type Block<T> = SignedBlock<BlockT<<T as System>::Header, UncheckedExtrinsic>>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Payload<T: System> {
-    FinalizedHead(T::Header),
+    FinalizedHead(<T as System>::Header),
     BlockNumber(T::BlockNumber),
-    Header(T::Header),
+    Header(<T as System>::Header),
     Block(Block<T>),
     Event(StorageChangeSet<T::Hash>),
     None,
@@ -36,4 +43,8 @@ pub enum Payload<T: System> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Data<T: System> {
     pub payload: Payload<T>
+}
+
+pub trait System: Trait + Sized + 'static {
+    type Header: Parameter + Header<Number = Self::BlockNumber, Hash = Self::Hash> + DeserializeOwned;
 }
