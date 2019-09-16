@@ -19,11 +19,14 @@
 use failure::Error;
 use substrate_archive::{
     srml::{Balances, Contracts, System},
+    ExponentialBackoff
 };
 use sr_primitives::{generic::Era, traits::StaticLookup};
 
 fn main() -> Result<(), Error> {
-    substrate_archive::run::<Runtime>().map_err(Into::into)
+    let strategy = ExponentialBackoff::from_millis(100);
+    let client = substrate_archive::Client::<Runtime>::new(strategy);
+    client.run().map_err(Into::into)
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

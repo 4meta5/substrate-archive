@@ -34,7 +34,6 @@ pub enum Error {
     Rpc(#[fail(cause)] JsonRpcError),
     #[fail(display = "Io: {}", _0)]
     Io(#[fail(cause)] IoError),
-
 }
 
 
@@ -68,19 +67,3 @@ impl From<JsonRpcError> for Error {
         Error::Rpc(err)
     }
 }
-/*
-impl Error {
-
-    // TODO: Possibly separate these out or try to preserve original error type, or implement std::Error on Subxt's error type
-    pub(crate) fn subxt(&self, err: SubxtError) -> Error {
-        match err {
-            SubxtError::Codec(e) => Error::from(ErrorKind::Subxt(e.to_string())),
-            SubxtError::Io(e) => Error::from(ErrorKind::Subxt(e.to_string())),
-            SubxtError::Rpc(e) => Error::from(ErrorKind::Subxt(e.to_string())),
-            SubxtError::SecretString(e) => Error::from(ErrorKind::Subxt(format!("{:?}", e))),
-            SubxtError::Metadata(e) => Error::from(ErrorKind::Subxt(format!("{:?}", e))),
-            SubxtError::Other(s) => Error::from(ErrorKind::Subxt(s)),
-        }
-    }
-}
-*/
