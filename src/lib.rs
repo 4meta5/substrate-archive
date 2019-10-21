@@ -21,13 +21,14 @@ mod error;
 mod archive;
 mod database;
 mod queries;
-#[cfg(test)]
-mod tests;
-mod srml_ext;
+// #[cfg(test)]
+// mod tests;
+// mod srml_ext;
 pub use archive::Archive;
 
-pub use types::{System, Module, ExtractCall};
-pub use srml_ext::{SrmlExt, NotHandled};
+// pub use types::{Module/*, ExtractCall*/};
+pub use substrate_subxt::system::System;
+// pub use srml_ext::{/*SrmlExt*/, NotHandled};
 
 pub mod srml {
     pub use srml_system;

@@ -24,7 +24,6 @@ use diesel::{
 use futures::Future;
 
 use crate::{
-    types::System,
     database::db_middleware::AsyncDiesel,
     error::Error as ArchiveError
 };

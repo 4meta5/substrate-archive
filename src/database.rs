@@ -31,6 +31,7 @@ use runtime_primitives::{
     traits::{Block as BlockTrait, Extrinsic},
     OpaqueExtrinsic, generic::UncheckedExtrinsic
 };
+use substrate_subxt::system::System;
 
 use std::{
     env,
@@ -39,7 +40,7 @@ use std::{
 
 use crate::{
     error::Error as ArchiveError,
-    types::{Data, System, Block, Storage, BasicExtrinsic, ExtractCall},
+    types::{Data, Block, Storage, BasicExtrinsic},
     database::{
         models::{InsertBlock, InsertInherentOwned},
         schema::{blocks, inherents},
@@ -207,7 +208,8 @@ where
                 }
             }
         })
-        .map(|(idx, decoded)| {
+        // .map(|(idx, decoded)| {
+            /*
             let (module, call) = decoded.function.extract_call();
             let index: i32 = i32::try_from(idx)?;
             let res = call.function();
@@ -224,9 +226,11 @@ where
                 success: true, // TODO: Success is not always true
                 in_index: index
             })
-        })
-        .collect::<Result<Vec<InsertInherentOwned>, ArchiveError>>()?;
-
+            */
+        // })
+        .collect::<Vec<BasicExtrinsic<T>>, ArchiveError>();
+    println!("{:?}", values);
+/*
     let fut = db.run(move |conn| {
         trace!("Inserting Extrinsics: {:?}", values);
         diesel::insert_into(inherents::table)
@@ -234,7 +238,8 @@ where
             .execute(&conn)
             .map_err(|e| e.into())
     }).map(|_| ());
-    Ok(Box::new(fut))
+*/
+    Ok(Box::new(future::ok(())))
 }
 
 

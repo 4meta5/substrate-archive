@@ -19,12 +19,9 @@
 use failure::Error;
 use substrate_archive::{
     Archive, System, Module,
-    ExtractCall, SrmlExt, NotHandled,
     srml::{srml_system as system}
 };
-use polkadot_runtime::{Runtime as RuntimeT, Call};
-use codec::{Encode, Decode, Input, Error as CodecError};
-
+use polkadot_runtime::{Runtime as RuntimeT, Address};
 
 fn main() -> Result<(), Error> {
     env_logger::init();
@@ -32,71 +29,15 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-// need to define Encode/Decode for Call New Type
-
-// Passthrough traits (Boilerplate)
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CallWrapper { inner: Call }
-impl Encode for CallWrapper {
-    fn encode(&self) -> Vec<u8> {
-        self.inner.encode()
-    }
-}
-
-impl Decode for CallWrapper {
-    fn decode<I: Input>(input: &mut I) -> Result<Self, CodecError> {
-        let decoded: Call = Decode::decode(input)?;
-        Ok(CallWrapper {
-            inner: decoded
-        })
-    }
-}
-
-// define all calls/inherents that you want tracked by the archive node
-impl ExtractCall for CallWrapper {
-    fn extract_call(&self) -> (Module, &dyn SrmlExt) {
-        match &self.inner {
-            Call::Timestamp(call) => {
-                (Module::Timestamp, call)
-            },
-            Call::FinalityTracker(call) => {
-                (Module::FinalityTracker, call)
-            },
-            Call::ImOnline(call) => {
-                (Module::ImOnline, call)
-            },
-            Call::Babe(call) => {
-                (Module::Babe, call)
-            },
-            Call::Staking(call) => {
-                (Module::Staking, call)
-            },
-            Call::Session(call) => {
-                (Module::Session, call)
-            },
-            Call::Grandpa(call) => {
-                (Module::Grandpa, call)
-            },
-            Call::Treasury(call) => {
-                (Module::Treasury, call)
-            }
-            c @ _ => {
-                println!("{:?}", c);
-                (Module::NotHandled, &NotHandled)
-            }
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Runtime;
 impl System for Runtime {
-    type Call = CallWrapper;
     type Index = <RuntimeT as system::Trait>::Index;
     type BlockNumber = <RuntimeT as system::Trait>::BlockNumber;
     type Hash = <RuntimeT as system::Trait>::Hash;
     type Hashing = <RuntimeT as system::Trait>::Hashing;
     type AccountId = <RuntimeT as system::Trait>::AccountId;
+    type Address = Address;
     type Lookup = <RuntimeT as system::Trait>::Lookup;
     type Header = <RuntimeT as system::Trait>::Header;
     type Event = <RuntimeT as system::Trait>::Event;

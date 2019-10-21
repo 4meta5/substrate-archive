@@ -29,6 +29,7 @@ use tokio::{
 };
 use runtime_primitives::traits::Header;
 use substrate_rpc_primitives::number::NumberOrHex;
+use substrate_subxt::{system::System, balances::Balances};
 use substrate_primitives::{
     U256,
     storage::StorageKey,
@@ -45,18 +46,18 @@ use crate::{
     database::Database,
     rpc::Rpc,
     error::Error as ArchiveError,
-    types::{System, Data, storage::{StorageKeyType, TimestampOp}}
+    types::{Data, storage::{StorageKeyType, TimestampOp}}
 };
 
 // TODO: the " 'static" constraint will be possible to remove Nov 7,
 // with the hopeful and long-anticipated release of async-await
-pub struct Archive<T: System> {
+pub struct Archive<T: System + Balances + 'static> {
     rpc: Arc<Rpc<T>>,
     db: Arc<Database>,
     runtime: Runtime
 }
 
-impl<T> Archive<T> where T: System {
+impl<T> Archive<T> where T: System + Balances + 'static {
 
     pub fn new() -> Result<Self, ArchiveError> {
         let runtime = Runtime::new()?;
@@ -180,7 +181,7 @@ impl Sync {
                  sender: UnboundedSender<Data<T>>,
                  handle: TaskExecutor,
     ) -> impl Future<Item = (Self, bool), Error = ()> + 'static
-        where T: System + std::fmt::Debug + 'static
+        where T: System + Balances + std::fmt::Debug + 'static
     {
         db.query_missing_blocks()
           .and_then(move |blocks| {
