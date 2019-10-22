@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
-use log::*;
+use log::{error, warn};
 use futures::{Future, Stream, sync::mpsc::UnboundedSender, future::{self, join_all}};
 use tokio::runtime::Runtime;
 use jsonrpc_core_client::{RpcChannel, transports::ws};
-use substrate_primitives::storage::StorageKey;
+use substrate_primitives::{storage::StorageKey, Bytes};
 use substrate_rpc_primitives::number::NumberOrHex;
 use substrate_rpc_api::{
     author::AuthorClient,
@@ -31,8 +31,11 @@ use substrate_rpc_api::{
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::types::{Data, System, SubstrateBlock, storage::StorageKeyType, Block, Header, Storage};
-use crate::error::{Error as ArchiveError};
+use crate::{
+    error::{Error as ArchiveError},
+    types::{Data, System, SubstrateBlock, storage::StorageKeyType, Block, Header, Storage},
+    metadata::Metadata
+};
 
 mod substrate_rpc;
 use self::substrate_rpc::SubstrateRpc;
@@ -158,6 +161,13 @@ impl<T> Rpc<T> where T: System {
                                     Self::send_block(block, sender)
                                 })
                       })
+            })
+    }
+
+    pub(crate) fn metadata(&self) -> impl Future<Item = Bytes, Error = ArchiveError> {
+        SubstrateRpc::connect(&self.url)
+            .and_then(move |client: SubstrateRpc<T>| {
+                client.metadata()
             })
     }
 

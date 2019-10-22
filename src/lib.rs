@@ -19,6 +19,7 @@ mod rpc;
 mod types;
 mod error;
 mod archive;
+mod metadata;
 mod database;
 mod queries;
 #[cfg(test)]

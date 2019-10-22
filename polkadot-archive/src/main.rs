@@ -28,7 +28,7 @@ use codec::{Encode, Decode, Input, Error as CodecError};
 
 fn main() -> Result<(), Error> {
     env_logger::init();
-    Archive::<Runtime>::new()?.run()?;
+    Archive::<Runtime>::new("ws://127.0.0.1:9944")?.run()?;
     Ok(())
 }
 

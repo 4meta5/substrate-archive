@@ -27,7 +27,10 @@ use tokio::{
     runtime::{Runtime, TaskExecutor},
     timer::Delay
 };
+use codec::Decode;
+use substrate_primitives::Bytes;
 use runtime_primitives::traits::Header;
+use runtime_metadata::RuntimeMetadataV8;
 use substrate_rpc_primitives::number::NumberOrHex;
 use substrate_primitives::{
     U256,
@@ -36,6 +39,7 @@ use substrate_primitives::{
 };
 
 use std::{
+    convert::TryInto,
     sync::Arc,
     thread,
     time::{self, Duration, Instant}
@@ -45,7 +49,8 @@ use crate::{
     database::Database,
     rpc::Rpc,
     error::Error as ArchiveError,
-    types::{System, Data, storage::{StorageKeyType, TimestampOp}}
+    types::{System, Data, storage::{StorageKeyType, TimestampOp}},
+    metadata::Metadata,
 };
 
 // TODO: the " 'static" constraint will be possible to remove Nov 7,
@@ -53,16 +58,21 @@ use crate::{
 pub struct Archive<T: System> {
     rpc: Arc<Rpc<T>>,
     db: Arc<Database>,
-    runtime: Runtime
+    runtime: Runtime,
+    // metadata: Metadata
 }
 
 impl<T> Archive<T> where T: System {
 
-    pub fn new() -> Result<Self, ArchiveError> {
-        let runtime = Runtime::new()?;
-        let rpc = Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?);
+    pub fn new(url: &str) -> Result<Self, ArchiveError> {
+        let mut runtime = Runtime::new()?;
+        let rpc = Rpc::<T>::new(url::Url::parse(url)?);
         let db = Database::new()?;
         let (rpc, db) = (Arc::new(rpc), Arc::new(db));
+        // let bytes: Bytes = runtime.block_on(rpc.metadata())?;
+        // let metadata: RuntimeMetadataV8 = Decode::decode(&mut &bytes[..])?;
+        // let metadata: Metadata = metadata.try_into()?;
+        // info!("{:?}", metadata);
         Ok( Self { rpc, db, runtime })
     }
 
@@ -96,7 +106,7 @@ impl<T> Archive<T> where T: System {
              .and_then(move |(sync, done)| {
                  info!("Updating {} missing blocks", sync);
                  sender1.unbounded_send(Data::SyncProgress(sync.blocks_missing))
-                       .unwrap();
+                     .expect("send from sync thread fail");
                  if done {
                      Ok(Loop::Break(sync))
                  } else {

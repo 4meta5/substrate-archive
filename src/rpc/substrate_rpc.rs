@@ -17,11 +17,13 @@
 //! A simple shim over the Substrate Rpc
 
 use log::*;
-use futures::{Future, Stream, sync::mpsc};
+use futures::{future, Future, Stream, sync::mpsc};
 use tokio::runtime::Runtime;
+use codec::Decode;
 use jsonrpc_core_client::{RpcChannel, transports::ws};
-use substrate_primitives::storage::{StorageKey, StorageData};
+use substrate_primitives::{Bytes, storage::{StorageKey, StorageData}};
 use substrate_rpc_primitives::number::NumberOrHex;
+use runtime_metadata::RuntimeMetadataPrefixed;
 use substrate_rpc_api::{
     author::AuthorClient,
     chain::{
@@ -30,8 +32,15 @@ use substrate_rpc_api::{
     state::StateClient,
 };
 
-use crate::types::{Data, System, SubstrateBlock, storage::StorageKeyType, Block, Header, Storage};
-use crate::error::{Error as ArchiveError};
+use crate::{
+    types::{
+        Data, System, SubstrateBlock,
+        Block, Header, Storage,
+        storage::StorageKeyType,
+    },
+    metadata::Metadata,
+    error::{Error as ArchiveError},
+};
 
 impl<T: System> From<RpcChannel> for SubstrateRpc<T> {
     fn from(channel: RpcChannel) -> Self {
@@ -76,6 +85,18 @@ impl<T> SubstrateRpc<T> where T: System {
             .subscribe_finalized_heads()
             .map(|s| s.map_err(Into::into))
             .map_err(|e| ArchiveError::from(e))
+    }
+
+    pub(crate) fn metadata(&self) -> impl Future<Item = Bytes, Error = ArchiveError> {
+
+        self.state.metadata(None).map_err(Into::into)
+            /*
+            .map(|bytes| Decode::decode(&mut &bytes[..]).expect("Decode failed"))
+            .map_err(Into::into)
+            */
+            /*.and_then(|meta: RuntimeMetadataPrefixed| {
+                future::result(meta.try_into().map_err(Into::into))
+            })*/
     }
 
     // TODO: make "Key" and "from" vectors

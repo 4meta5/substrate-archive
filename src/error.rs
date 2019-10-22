@@ -25,6 +25,7 @@ use std::env::VarError as EnvironmentError;
 use tokio_threadpool::BlockingError;
 use r2d2::Error as R2d2Error;
 use std::num::TryFromIntError;
+use crate::metadata::Error as MetadataError;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -50,6 +51,8 @@ pub enum Error {
     ThreadPool(#[fail(cause)] BlockingError),
     #[fail(display = "Int Conversion Error: {}", _0)]
     IntConversion(#[fail(cause)] TryFromIntError),
+    #[fail(display = "Error converting metadata bitstring {}", _0)]
+    MetadataError(#[fail(cause)] MetadataError),
 
     #[fail(display = "Call type unhandled, not committing to database")]
     UnhandledCallType,
@@ -58,6 +61,13 @@ pub enum Error {
     #[fail(display = "Unhandled Data type, not committing to database")]
     UnhandledDataType
 }
+
+impl From<MetadataError> for Error {
+    fn from(err: MetadataError) -> Error {
+        Error::MetadataError(err)
+    }
+}
+
 impl From<TryFromIntError> for Error {
     fn from(err: TryFromIntError) -> Error {
         Error::IntConversion(err)

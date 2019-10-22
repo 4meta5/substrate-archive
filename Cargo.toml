@@ -41,6 +41,7 @@ inherents = { git = "https://github.com/paritytech/substrate/", package = "subst
 
 
 # srml-assets = { git = "https://github.com/paritytech/substrate/", package = "srml-assets", branch="polkadot-master"}
+runtime_metadata = { git = "https://github.com/paritytech/substrate/", package = "srml-metadata", branch = "polkadot-master"}
 srml-staking = {git = "https://github.com/paritytech/substrate/", package = "srml-staking", branch = "polkadot-master"}
 srml-grandpa = {git = "https://github.com/paritytech/substrate/", package = "srml-grandpa", branch = "polkadot-master"}
 srml-babe = {git = "https://github.com/paritytech/substrate/", package = "srml-babe", branch = "polkadot-master"}
@@ -51,6 +52,7 @@ srml-finality-tracker = { git = "https://github.com/paritytech/substrate", packa
 srml-sudo = { git = "https://github.com/paritytech/substrate", package = "srml-sudo", branch = "polkadot-master"}
 srml-im-online = { git = "https://github.com/paritytech/substrate", package = "srml-im-online", branch = "polkadot-master"}
 srml-treasury = { git = "https://github.com/paritytech/substrate", package = "srml-treasury", branch = "polkadot-master"}
+derive_more = "0.15.0"
 
 [dev-dependencies]
 node-runtime = { git = "https://github.com/paritytech/substrate", package="node-runtime", branch="polkadot-master" }
