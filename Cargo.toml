@@ -57,8 +57,8 @@ srml-im-online = { git = "https://github.com/paritytech/substrate", package = "s
 srml-treasury = { git = "https://github.com/paritytech/substrate", package = "srml-treasury", branch = "polkadot-master"}
 derive_more = "0.15.0"
 async-trait = "0.1.17"
-async-std = "0.99.12"
-byte-slice-cast = "=0.3.2" # remove once parity-scale-codec is updated
+byte-slice-cast = "=0.3.2" # remove once parity-scale-codec is updateduse futures::future::Future;
+
 
 # [patch.'https://github.com/paritytech/polkadot']
 # polkadot-runtime = { git = "https://github.com/insipx/polkadot", branch = "insipx/archive-patches-v0.6" }

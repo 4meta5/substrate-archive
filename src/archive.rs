@@ -20,7 +20,8 @@ use futures::{
     channel::mpsc::{self, UnboundedReceiver, UnboundedSender},
     future, StreamExt,
 };
-use async_std::task;
+use tokio::prelude::*;
+use tokio::runtime::Runtime;
 use substrate_primitives::{storage::StorageKey, twox_128, U256};
 use substrate_rpc_primitives::number::NumberOrHex;
 
@@ -40,6 +41,7 @@ use crate::{
 pub struct Archive<T: System> {
     rpc: Rpc<T>,
     db: Database,
+    runtime: Runtime,
 }
 
 impl<T> Archive<T>
@@ -49,27 +51,30 @@ where
 
     pub fn new() -> Result<Self, ArchiveError> {
         let db = Database::new()?;
-        let rpc = task::block_on(Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?))?;
+        info!("Initializing RPC");
+        let mut runtime = Runtime::new()?;
+        let rpc = runtime.block_on(Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?))?;
         // let metadata = runtime.block_on(rpc.metadata())?;
         // debug!("METADATA: {:?}", metadata);
-        Ok(Self { rpc, db })
+        Ok(Self { rpc, db, runtime })
     }
 
-    pub fn run(self) -> Result<(), ArchiveError> {
+    pub fn run(mut self) -> Result<(), ArchiveError> {
         let (sender, receiver) = mpsc::unbounded();
         crate::util::init_logger(log::LevelFilter::Error); // TODO user should decide log strategy
 
         // crawls database and retrieves any missing values
-        task::block_on(Sync::sync(&self.db, &self.rpc, sender.clone()))?;
+        self.runtime.block_on(Sync::sync(&self.db, &self.rpc, sender.clone()))?;
 
+        let executor = self.runtime.executor();
         let tasks = future::try_join(
             // block subscription thread
-            task::spawn(self.rpc.subscribe_blocks(sender)),
+            executor.spawn(self.rpc.subscribe_blocks(sender)),
             // inserts into database / handles misc. data (ie sync progress, etc)
-            task::spawn(Self::handle_data(receiver, self.db))
+            executor.spawn(Self::handle_data(receiver, self.db))
         );
 
-        task::block_on(async {
+        self.runtime.block_on(async {
             tasks.await.map(|_| ())
         })
     }
