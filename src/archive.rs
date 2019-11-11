@@ -14,168 +14,103 @@
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Spawning of all tasks happens in this module
-//! Nowhere else is anything ever spawned
-
+//! Spawning of tasks happens in this module
 use log::*;
-use tokio::runtime::Runtime;
-use substrate_rpc_primitives::number::NumberOrHex;
-use async_stream::try_stream;
 use futures::{
-    Stream,
-    FutureExt, StreamExt,
     channel::mpsc::{self, UnboundedReceiver, UnboundedSender},
+    future, StreamExt,
 };
-use substrate_primitives::{
-    U256,
-    storage::StorageKey,
-    twox_128
-};
+use async_std::task;
+use substrate_primitives::{storage::StorageKey, twox_128, U256};
+use substrate_rpc_primitives::number::NumberOrHex;
 
-use std::{
-    sync::Arc,
-    marker::PhantomData,
-    thread,
-    time
-};
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     database::Database,
-    rpc::Rpc,
     error::Error as ArchiveError,
-    types::{System, Data, storage::{StorageKeyType, TimestampOp}},
+    rpc::Rpc,
+    types::{
+        storage::{StorageKeyType, TimestampOp},
+        Data, System,
+    },
 };
 
 // with the hopeful and long-anticipated release of async-await
 pub struct Archive<T: System> {
-    rpc: Arc<Rpc<T>>,
-    db: Arc<Database>,
-    runtime: Runtime
+    rpc: Rpc<T>,
+    db: Database,
 }
 
-impl<T> Archive<T> where T: System {
+impl<T> Archive<T>
+where
+    T: System,
+{
 
     pub fn new() -> Result<Self, ArchiveError> {
-        let mut runtime = Runtime::new()?;
-        let rpc = Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?);
         let db = Database::new()?;
-        let (rpc, db) = (Arc::new(rpc), Arc::new(db));
+        let rpc = task::block_on(Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?))?;
         // let metadata = runtime.block_on(rpc.metadata())?;
         // debug!("METADATA: {:?}", metadata);
-        Ok( Self { rpc, db, runtime })
+        Ok(Self { rpc, db })
     }
 
-    pub fn run(mut self) -> Result<(), ArchiveError> {
+    pub fn run(self) -> Result<(), ArchiveError> {
         let (sender, receiver) = mpsc::unbounded();
         crate::util::init_logger(log::LevelFilter::Error); // TODO user should decide log strategy
 
-        // block subscription thread
-        self.runtime.spawn(Self::blocks(self.rpc.clone(), sender.clone()));
+        // crawls database and retrieves any missing values
+        task::block_on(Sync::sync(&self.db, &self.rpc, sender.clone()))?;
 
-        // crawls database and retrieves missing values
-        self.runtime.spawn(Self::sync(self.db.clone(), self.rpc.clone(), sender.clone()));
+        let tasks = future::try_join(
+            // block subscription thread
+            task::spawn(self.rpc.subscribe_blocks(sender)),
+            // inserts into database / handles misc. data (ie sync progress, etc)
+            task::spawn(Self::handle_data(receiver, self.db))
+        );
 
-        // inserts into database / handles misc. data (ie sync progress, etc)
-        self.runtime.block_on(Self::handle_data(receiver, self.db.clone()));
+        task::block_on(async {
+            tasks.await.map(|_| ())
+        })
+    }
 
+    async fn handle_data(mut receiver: UnboundedReceiver<Data<T>>, db: Database
+    ) -> Result<(), ArchiveError> {
+        for data in receiver.next().await {
+            db.insert(data).await?;
+        }
         Ok(())
     }
-
-    async fn blocks(rpc: Arc<Rpc<T>>, sender: UnboundedSender<Data<T>>) {
-        match rpc.subscribe_blocks(sender).await {
-            Ok(_) => (),
-            Err(e) => error!("{:?}", e)
-        };
-    }
-
-    /// Verification task that ensures all blocks are in the database
-    async fn sync(db: Arc<Database>, rpc: Arc<Rpc<T>>, sender: UnboundedSender<Data<T>>) {
-        let stream = Sync::new().sync(db.clone(), rpc.clone(), sender.clone()).await;
-        futures_util::pin_mut!(stream);
-        while let Some(v) = stream.next().await {
-            if v.is_err() {
-                error!("{:?}", v);
-            } else {
-                let v = v. expect("Error is checked; qed");
-                sender
-                    .clone()
-                    .unbounded_send(Data::SyncProgress(v.blocks_missing))
-                    .map_err(|e| error!("{:?}", e));
-            }
-        }
-    }
-
-    async fn handle_data(receiver: UnboundedReceiver<Data<T>>, db: Arc<Database>) {
-
-        for data in receiver.next().await {
-            match data {
-                Data::SyncProgress(missing_blocks) => {
-                    println!("{} blocks missing", missing_blocks);
-                },
-                c @ _ => {
-                    // possibly use tokio::spawn
-                    db.insert(data).map(|v| {
-                        if v.is_err() {
-                            error!("{:?}", v);
-                        }
-                    }).await
-                }
-            };
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SyncStreamItem {
-    blocks_missing: usize,
-    timestamps_missing: usize
 }
 
 #[derive(Debug, PartialEq, Eq)]
 struct Sync<T: System + std::fmt::Debug> {
-    last: usize,
-    looped: usize,
-    _marker: PhantomData<T>
+    _marker: PhantomData<T>,
 }
 
-impl<T> Sync<T> where T: System + std::fmt::Debug {
+impl<T> Sync<T>
+where
+    T: System + std::fmt::Debug,
+{
 
-    fn new() -> Self {
-        Self {
-            last: 0,
-            looped: 0,
-            _marker: PhantomData
-        }
-    }
-
-    async fn sync(self,
-                  db: Arc<Database>,
-                  rpc: Arc<Rpc<T>>,
-                  sender: UnboundedSender<Data<T>>,
-    ) -> impl Stream<Item = Result<SyncStreamItem, ArchiveError>> {
-
-        info!("Looped: {}", &self.looped);
-        try_stream! {
-            loop {
-                let timestamps_missing = self.sync_timestamps(db.clone(), rpc.clone(), sender.clone()).await?;
-                let blocks_missing = self.sync_blocks(db.clone(), rpc.clone(), sender.clone()).await?;
-
-                // sleep, this thread does not need to run all the time
-                if blocks_missing == 0 && timestamps_missing == 0 {
-                    // TODO change to non-blocking sleep
-                    thread::sleep(time::Duration::from_millis(10_000));
-                }
-                yield SyncStreamItem { blocks_missing, timestamps_missing };
-            }
-        }
+    async fn sync(
+        db: &Database,
+        rpc: &Rpc<T>,
+        sender: UnboundedSender<Data<T>>,
+    ) -> Result<((),()), ArchiveError> {
+        future::try_join(
+            Self::sync_blocks(db, rpc, sender.clone()),
+            Self::sync_timestamps(db, rpc, sender.clone()),
+        ).await
     }
 
     /// find missing timestamps and add them to DB if found. Return number missing timestamps
-    async fn sync_timestamps(&self, db: Arc<Database>, rpc: Arc<Rpc<T>>, sender: UnboundedSender<Data<T>>
-    ) -> Result<usize, ArchiveError>
-    {
+    async fn sync_timestamps(
+        db: &Database,
+        rpc: &Rpc<T>,
+        sender: UnboundedSender<Data<T>>,
+    ) -> Result<(), ArchiveError> {
         let hashes = db.query_missing_timestamps::<T>().await?;
-        let num_missing = hashes.len();
         let timestamp_key = b"Timestamp Now";
         let storage_key = twox_128(timestamp_key);
         let keys = std::iter::repeat(StorageKey(storage_key.to_vec()))
@@ -185,21 +120,23 @@ impl<T> Sync<T> where T: System + std::fmt::Debug {
             .take(hashes.len())
             .collect::<Vec<StorageKeyType>>();
         rpc.batch_storage(sender, keys, hashes, key_types).await?;
-        Ok(num_missing)
+        Ok(())
     }
 
     /// sync blocks, 100,000 at a time, returning number of blocks that were missing before synced
-    async fn sync_blocks(&self, db: Arc<Database>, rpc: Arc<Rpc<T>>, sender: UnboundedSender<Data<T>>
-    ) -> Result<usize, ArchiveError>
-    {
+    async fn sync_blocks(
+        db: &Database,
+        rpc: &Rpc<T>,
+        sender: UnboundedSender<Data<T>>,
+    ) -> Result<(), ArchiveError> {
         let missing_blocks = db.query_missing_blocks().await?;
-        let blocks = missing_blocks
-            .into_iter()
-            .take(100_000)
-            .map(|b| NumberOrHex::Hex(U256::from(b)))
-            .collect::<Vec<NumberOrHex<T::BlockNumber>>>();
-        rpc.batch_block_from_number(blocks, sender).await?;
-        // sender.unbounded_send(Data::SyncProgress(blocks.len()));
-        Ok(blocks.len())
+        for chunk in missing_blocks.chunks(100_000) {
+            let chunk = chunk
+                .into_iter()
+                .map(|b| NumberOrHex::Hex(U256::from(*b)))
+                .collect::<Vec<NumberOrHex<T::BlockNumber>>>();
+            rpc.batch_block_from_number(chunk, sender.clone()).await?;
+        }
+        Ok(())
     }
 }

@@ -15,7 +15,8 @@ members = [
 [dependencies]
 log = "0.4"
 futures01 = { version = "0.1" }
-futures-preview = { version = "0.3.0-alpha.19", features = ["compat"] }
+futures = { version = "0.3.1", features = ["compat"] }
+futures-util = "0.3.1"
 tokio = "=0.2.0-alpha.6"
 tokio-threadpool = "0.1"
 # tokio = "0.1"
@@ -30,7 +31,7 @@ dirs = "2.0.2"
 
 fern = { version = "0.5", features = ["colored"] }
 diesel = { version = "1.4", features = ["postgres", "chrono", "numeric", "r2d2"] }
-codec = { package = "parity-scale-codec", version = "1.0.0" }
+codec = { package = "parity-scale-codec", version = "~1.0.0" }
 jsonrpc-core-client = { version = "14.0", features = ["ws"] }
 
 runtime-metadata = { git = "https://github.com/paritytech/substrate/", package = "srml-metadata", branch = "polkadot-master" }
@@ -56,11 +57,11 @@ srml-im-online = { git = "https://github.com/paritytech/substrate", package = "s
 srml-treasury = { git = "https://github.com/paritytech/substrate", package = "srml-treasury", branch = "polkadot-master"}
 derive_more = "0.15.0"
 async-trait = "0.1.17"
-async-stream = "0.1.2"
-futures-util = "0.3.1"
+async-std = "0.99.12"
+byte-slice-cast = "=0.3.2" # remove once parity-scale-codec is updated
 
-[patch.'https://github.com/paritytech/polkadot']
-polkadot-runtime = { git = "https://github.com/insipx/polkadot", branch = "insipx/archive-patches-v0.6" }
+# [patch.'https://github.com/paritytech/polkadot']
+# polkadot-runtime = { git = "https://github.com/insipx/polkadot", branch = "insipx/archive-patches-v0.6" }
 
 [dev-dependencies]
 node-runtime = { git = "https://github.com/paritytech/substrate", package="node-runtime", branch="polkadot-master" }
