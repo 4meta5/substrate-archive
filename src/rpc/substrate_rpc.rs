@@ -16,30 +16,20 @@
 
 //! A simple shim over the Substrate Rpc
 
-use log::*;
-use futures::{future, Future, Stream, sync::mpsc};
-use tokio::runtime::Runtime;
-use codec::Decode;
+use futures::{Future, Stream, future};
 use jsonrpc_core_client::{RpcChannel, transports::ws};
-use substrate_primitives::{Bytes, storage::{StorageKey, StorageData}};
-use substrate_rpc_primitives::number::NumberOrHex;
+use codec::Decode;
 use runtime_metadata::RuntimeMetadataPrefixed;
-use substrate_rpc_api::{
-    author::AuthorClient,
-    chain::{
-        ChainClient,
-    },
-    state::StateClient,
-};
+use substrate_primitives::storage::{StorageKey, StorageData};
+use substrate_rpc_primitives::number::NumberOrHex;
+use substrate_rpc_api::{author::AuthorClient, chain::ChainClient, state::StateClient};
+
+use std::convert::TryInto;
 
 use crate::{
-    types::{
-        Data, System, SubstrateBlock,
-        Block, Header, Storage,
-        storage::StorageKeyType,
-    },
-    metadata::Metadata,
-    error::{Error as ArchiveError},
+    types::{System, SubstrateBlock},
+    error::Error as ArchiveError,
+    metadata::Metadata
 };
 
 impl<T: System> From<RpcChannel> for SubstrateRpc<T> {
@@ -78,7 +68,7 @@ impl<T> SubstrateRpc<T> where T: System {
     }
 
     /// send all finalized headers back to main thread
-    pub(crate) fn subscribe_finalized_blocks(&self
+    pub(crate) fn subscribe_finalized_heads(&self
     ) -> impl Future<Item = impl Stream<Item = T::Header, Error = ArchiveError>, Error = ArchiveError>
     {
         self.chain
@@ -87,16 +77,14 @@ impl<T> SubstrateRpc<T> where T: System {
             .map_err(|e| ArchiveError::from(e))
     }
 
-    pub(crate) fn metadata(&self) -> impl Future<Item = Bytes, Error = ArchiveError> {
-
-        self.state.metadata(None).map_err(Into::into)
-            /*
+    pub(crate) fn metadata(&self) -> impl Future<Item = Metadata, Error = ArchiveError> {
+        self.state
+            .metadata(None)
             .map(|bytes| Decode::decode(&mut &bytes[..]).expect("Decode failed"))
             .map_err(Into::into)
-            */
-            /*.and_then(|meta: RuntimeMetadataPrefixed| {
+            .and_then(|meta: RuntimeMetadataPrefixed| {
                 future::result(meta.try_into().map_err(Into::into))
-            })*/
+            })
     }
 
     // TODO: make "Key" and "from" vectors
@@ -109,17 +97,19 @@ impl<T> SubstrateRpc<T> where T: System {
                           // from: StorageKeyType
     ) -> impl Future<Item = Option<StorageData>, Error = ArchiveError>
     {
+        // let hash: Vec<u8> = hash.encode();
+        // let hash: T::Hash = Decode::decode(&mut hash.as_slice()).unwrap();
         self.state
             .storage(key, Some(hash))
             .map_err(Into::into)
     }
 
     /// Fetch a block by hash from Substrate RPC
-    pub(crate) fn block(&self, hash: T::Hash
+    pub(crate) fn block(&self, hash: Option<T::Hash>
     ) -> impl Future<Item = Option<SubstrateBlock<T>>, Error = ArchiveError>
     {
         self.chain
-            .block(Some(hash))
+            .block(hash)
             .map_err(Into::into)
     }
 
@@ -132,11 +122,13 @@ impl<T> SubstrateRpc<T> where T: System {
     }
 
     /// unsubscribe from finalized heads
+    #[allow(dead_code)]
     fn unsubscribe_finalized_heads() {
         unimplemented!();
     }
 
     /// unsubscribe from new heads
+    #[allow(dead_code)]
     fn unsubscribe_new_heads() {
         unimplemented!();
     }

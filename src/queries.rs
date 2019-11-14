@@ -16,20 +16,6 @@
 
 //! Common Sql queries on Archive Database abstracted into rust functions
 
-use diesel::{
-    dsl::{min, max},
-    sql_types::{BigInt, Array, Nullable},
-    QueryDsl, ExpressionMethods,
-};
-use futures::Future;
-
-use crate::{
-    types::System,
-    database::db_middleware::AsyncDiesel,
-    error::Error as ArchiveError
-};
-
-
 pub(crate) fn missing_blocks() -> diesel::query_builder::SqlQuery {
     let query = "\
 SELECT generate_series
@@ -40,12 +26,21 @@ WHERE
     diesel::sql_query(query)
 }
 
+pub(crate) fn missing_timestamp() -> diesel::query_builder::SqlQuery {
+    let query = "\
+SELECT hash
+FROM blocks
+WHERE block_num > 0 AND time IS NULL
+";
+    diesel::sql_query(query) // block_num must be > 0 because genesis block will not have timestamp
+}
+
 // Get the latest block in the database
 // this might not be up-to-date right as the node starts,
 // but will soon start collecting the latest heads
+#[allow(dead_code)]
 pub(crate) fn head() -> diesel::query_builder::SqlQuery {
     unimplemented!()
-
 }
 
 

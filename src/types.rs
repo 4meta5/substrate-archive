@@ -19,15 +19,13 @@ pub mod storage;
 use substrate_primitives::storage::StorageChangeSet;
 use serde::de::DeserializeOwned;
 use codec::{Encode, Decode};
-use custom_derive::*;
-use enum_derive::*;
+use chrono::{DateTime, Utc, TimeZone};
 use substrate_primitives::storage::StorageData;
 use runtime_support::Parameter;
 use runtime_primitives::{
     OpaqueExtrinsic,
     AnySignature,
     generic::{
-        UncheckedExtrinsic,
         Block as BlockT,
         SignedBlock
     },
@@ -37,8 +35,8 @@ use runtime_primitives::{
         Hash,
         Header as HeaderTrait,
         MaybeDisplay,
-        MaybeSerializeDebug,
-        MaybeSerializeDebugButNotDeserialize,
+        MaybeSerializeDeserialize,
+        MaybeSerialize,
         Member,
         SignedExtension,
         SimpleArithmetic,
@@ -47,13 +45,13 @@ use runtime_primitives::{
     },
 };
 
-use crate::srml_ext::SrmlExt;
+use crate::{error::Error, srml_ext::SrmlExt, extrinsics::Extrinsic};
 use self::storage::StorageKeyType;
 
 /// Format for describing accounts
 pub type Address<T> = <<T as System>::Lookup as StaticLookup>::Source;
-/// Basic Extrinsic Type. Does not contain an ERA
-pub type BasicExtrinsic<T> = UncheckedExtrinsic<Address<T>, <T as System>::Call, AnySignature, <T as System>::SignedExtra >;
+pub type BasicExtrinsic<T>
+    = Extrinsic<Address<T>, <T as System>::Call, AnySignature, <T as System>::SignedExtra>;
 /// A block with OpaqueExtrinsic as extrinsic type
 pub type SubstrateBlock<T> = SignedBlock<BlockT<<T as System>::Header, OpaqueExtrinsic>>;
 
@@ -64,8 +62,9 @@ pub type SubstrateBlock<T> = SignedBlock<BlockT<<T as System>::Header, OpaqueExt
 pub enum Data<T: System> {
     Header(Header<T>),
     FinalizedHead(Header<T>),
-    // Hash(T::Hash),
     Block(Block<T>),
+    BatchBlock(BatchBlock<T>),
+    BatchStorage(BatchStorage<T>), // include callback on storage types for exact diesel::call
     Storage(Storage<T>),
     Event(Event<T>),
     SyncProgress(usize),
@@ -90,8 +89,9 @@ impl<T: System> Header<T> {
     }
 }
 
+
 #[derive(Debug, PartialEq, Eq)]
-pub struct Block<T: System>{
+pub struct Block<T: System> {
     inner: SubstrateBlock<T>
 }
 
@@ -109,13 +109,32 @@ impl<T: System> Block<T> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Storage<T: System>{
-    data: StorageData,
-    key_type: StorageKeyType,
-    hash: T::Hash
+pub struct BatchBlock<T: System> {
+    inner: Vec<SubstrateBlock<T>>
 }
 
-impl<T: System> Storage<T> {
+impl<T: System> BatchBlock<T> {
+
+    pub fn new(blocks: Vec<SubstrateBlock<T>>) -> Self {
+        Self { inner: blocks }
+    }
+
+    pub fn inner(&self) -> &Vec<SubstrateBlock<T>> {
+        &self.inner
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Storage<T: System> {
+    data: StorageData,
+    key_type: StorageKeyType,
+    hash: T::Hash // TODO use T:Hash
+}
+
+impl<T> Storage<T>
+where
+    T: System
+{
 
     pub fn new(data: StorageData, key_type: StorageKeyType, hash: T::Hash) -> Self {
         Self { data, key_type, hash }
@@ -124,11 +143,41 @@ impl<T: System> Storage<T> {
     pub fn data(&self) -> &StorageData {
         &self.data
     }
+
     pub fn key_type(&self) -> &StorageKeyType {
         &self.key_type
     }
+
     pub fn hash(&self) -> &T::Hash {
         &self.hash
+    }
+
+    pub fn get_timestamp(&self) -> Result<DateTime<Utc>, Error> {
+        // TODO: check if storage key type is actually from the timestamp module
+        let unix_time: i64 = Decode::decode(&mut self.data().0.as_slice())?;
+        Ok(Utc.timestamp_millis(unix_time)) // panics if time is incorrect
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BatchStorage<T: System> {
+    inner: Vec<Storage<T>>,
+}
+
+impl<T> BatchStorage<T>
+where
+    T: System
+{
+    pub fn new(data: Vec<Storage<T>>) -> Self {
+        Self { inner: data }
+    }
+
+    pub fn inner(&self) -> &Vec<Storage<T>> {
+        &self.inner
+    }
+
+    pub fn consume(self) -> Vec<Storage<T>> {
+        self.inner
     }
 }
 
@@ -148,52 +197,48 @@ impl<T: System> Event<T> {
     }
 }
 
-
-// TODO: Not sustainable to keep an up-to-date enum of all modules?
-custom_derive! {
-    #[derive(Debug, PartialEq, Eq, Clone, EnumDisplay, IterVariants(IterCallModule))]
-    pub enum Module {
-        Assets,
-        Aura,
-        AuthorityDiscovery,
-        Authorship,
-        Babe,
-        Balances,
-        Collective,
-        Contracts,
-        Democracy,
-        Elections,
-        ElectionsPhragmen,
-        Executive,
-        FinalityTracker,
-        GenericAsset,
-        Grandpa,
-        ImOnline,
-        Indices,
-        Membership,
-        Metadata,
-        Offences,
-        RandomnessCollectiveFlip,
-        ScoredPool,
-        Session,
-        Staking,
-        Sudo,
-        Support,
-        // System,
-        Timestamp,
-        TransactionPayment,
-        Treasury,
-        Utility,
-        NotHandled,
-    }
+#[derive(Debug, PartialEq, Eq, Clone, derive_more::Display)]
+pub enum Module {
+    Assets,
+    Aura,
+    AuthorityDiscovery,
+    Authorship,
+    Babe,
+    Balances,
+    Collective,
+    Contracts,
+    Democracy,
+    Elections,
+    ElectionsPhragmen,
+    Executive,
+    FinalityTracker,
+    GenericAsset,
+    Grandpa,
+    ImOnline,
+    Membership,
+    Metadata,
+    Offences,
+    Parachains,
+    RandomnessCollectiveFlip,
+    ScoredPool,
+    Session,
+    Staking,
+    Sudo,
+    Support,
+    // System,
+    Timestamp,
+    TransactionPayment,
+    Treasury,
+    Utility,
+    Custom(String), // modules that are not defined within substrate
+    NotHandled,
 }
 
 
 pub trait ExtractCall {
     /// module the call is from, IE Timestamp, FinalityTracker
-    fn extract_call(&self) -> (Module, &dyn SrmlExt);
+    fn extract_call(&self) -> (Module, Box<dyn SrmlExt>);
 }
-
 
 // TODO: Consider removing this trait and directly using srml_system::Trait
 // Right now this acts as some sort of Shim, in case we need any traits that srml_system::Trait does not specify
@@ -217,7 +262,8 @@ pub trait System: Send + Sync + 'static + std::fmt::Debug {
     /// transactions associated with a sender account.
     type Index: Parameter
         + Member
-        + MaybeSerializeDebugButNotDeserialize
+        + MaybeSerialize
+        + std::fmt::Debug
         + Default
         + MaybeDisplay
         + SimpleArithmetic
@@ -226,7 +272,8 @@ pub trait System: Send + Sync + 'static + std::fmt::Debug {
     /// The block number type used by the runtime.
     type BlockNumber: Parameter
         + Member
-        + MaybeSerializeDebug
+        + MaybeSerializeDeserialize
+        + std::fmt::Debug
         + MaybeDisplay
         + SimpleArithmetic
         + Default
@@ -238,7 +285,8 @@ pub trait System: Send + Sync + 'static + std::fmt::Debug {
     /// The output of the `Hashing` function.
     type Hash: Parameter
         + Member
-        + MaybeSerializeDebug
+        + MaybeSerializeDeserialize
+        + std::fmt::Debug
         + MaybeDisplay
         + SimpleBitOps
         + Default
@@ -255,7 +303,8 @@ pub trait System: Send + Sync + 'static + std::fmt::Debug {
     /// The user account identifier type for the runtime.
     type AccountId: Parameter
         + Member
-        + MaybeSerializeDebug
+        + MaybeSerializeDeserialize
+        + std::fmt::Debug
         + MaybeDisplay
         + Ord
         + Default;

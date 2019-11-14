@@ -21,7 +21,7 @@ use primitive_types::{H256 as SubstrateH256, H512 as SubstrateH512};
 use diesel::sql_types::{Binary};
 use diesel::backend::Backend;
 use diesel::deserialize::{self, FromSql};
-use diesel::Queryable;
+use diesel::{Queryable, AsChangeset};
 use chrono::{offset::Utc, DateTime};
 
 use super::schema::{blocks, inherents, signed_extrinsics, accounts};
@@ -33,7 +33,7 @@ use super::schema::{blocks, inherents, signed_extrinsics, accounts};
 /// if not originally a hash (bytes from hashes are extracted with as_ref())
 /// it is encoded with parity_scale_codec (u32/etc)
 /// to make up for PostgreSQL's lack of an unsigned data type
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[table_name="blocks"]
 pub struct InsertBlock<'a> {
     pub parent_hash: &'a [u8],
@@ -44,6 +44,17 @@ pub struct InsertBlock<'a> {
     pub time: Option<&'a DateTime<Utc>>
 }
 
+#[derive(Insertable, AsChangeset)]
+#[table_name="blocks"]
+pub struct InsertBlockOwned {
+    pub parent_hash: Vec<u8>,
+    pub hash: Vec<u8>,
+    pub block_num: i64,
+    pub state_root: Vec<u8>,
+    pub extrinsics_root: Vec<u8>,
+    pub time: Option<DateTime<Utc>>
+}
+
 #[derive(Insertable)]
 #[table_name="inherents"]
 pub struct InsertInherent<'a> {
@@ -52,8 +63,9 @@ pub struct InsertInherent<'a> {
     pub module: &'a str,
     pub call: &'a str,
     pub parameters: Option<Vec<u8>>,
-    pub success: &'a bool,
+    // pub success: &'a bool,
     pub in_index: &'a i32,
+    pub transaction_version: &'a i32
 }
 
 // for batch inserts where collecting references may not always live long enough
@@ -65,23 +77,41 @@ pub struct InsertInherentOwned {
     pub module: String,
     pub call: String,
     pub parameters: Option<Vec<u8>>,
-    pub success: bool,
-    pub in_index: i32
+    // pub success: bool,
+    pub in_index: i32,
+    pub transaction_version: i32
 }
 
 #[derive(Insertable)]
 #[table_name="signed_extrinsics"]
 pub struct InsertTransaction<'a> {
-    transaction_hash: &'a [u8],
-    block_num: &'a i64,
-    hash: &'a [u8],
-    from_addr: &'a [u8],
-    to_addr: Option<&'a [u8]>,
-    call: &'a str,
-    success: &'a bool,
-    nonce: &'a i32,
-    tx_index: &'a i32,
-    signature: &'a [u8]
+    pub transaction_hash: &'a [u8],
+    pub block_num: &'a i64,
+    pub hash: &'a [u8],
+    pub from_addr: &'a [u8],
+    pub to_addr: Option<&'a [u8]>,
+    pub call: &'a str,
+    // pub success: &'a bool,
+    pub nonce: &'a i32,
+    pub tx_index: &'a i32,
+    pub signature: &'a [u8],
+    pub transaction_version: &'a i32,
+}
+
+#[derive(Insertable, Debug)]
+#[table_name="signed_extrinsics"]
+pub struct InsertTransactionOwned {
+    pub transaction_hash: Vec<u8>,
+    pub block_num: i64,
+    pub hash: Vec<u8>,
+    pub from_addr: Vec<u8>,
+    pub to_addr: Option<Vec<u8>>,
+    pub call: String,
+    // pub success: bool,
+    pub nonce: i32,
+    pub tx_index: i32,
+    pub signature: Vec<u8>,
+    pub transaction_version: i32
 }
 
 #[derive(Insertable)]
@@ -132,7 +162,7 @@ pub struct Inherents {
     call: String,
     parameters: Option<Vec<u8>>,
     /// Was the call succesful?
-    success: bool,
+    // success: bool,
     /// Index of the inherant within a block
     in_index: i32,
 }
@@ -151,7 +181,7 @@ pub struct SignedExtrinsics {
     /// The call this transaction is using
     call: String,
     /// was the transaction succesful?
-    success: bool,
+    // success: bool,
     /// nonce of the transaction
     nonce: usize,
     /// Index of the transaction within the block it originated in

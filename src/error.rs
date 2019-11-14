@@ -51,20 +51,22 @@ pub enum Error {
     ThreadPool(#[fail(cause)] BlockingError),
     #[fail(display = "Int Conversion Error: {}", _0)]
     IntConversion(#[fail(cause)] TryFromIntError),
-    #[fail(display = "Error converting metadata bitstring {}", _0)]
-    MetadataError(#[fail(cause)] MetadataError),
 
     #[fail(display = "Call type unhandled, not committing to database")]
     UnhandledCallType,
     // if trying to insert unsupported type into database
     // (as of this writing, anything other than a block or storage type)
     #[fail(display = "Unhandled Data type, not committing to database")]
-    UnhandledDataType
+    UnhandledDataType(String),
+    #[fail(display = "{} not found, or does not exist", _0)]
+    DataNotFound(String),
+    #[fail(display = "Metadata {}", _0)]
+    Metadata(MetadataError),
 }
 
 impl From<MetadataError> for Error {
     fn from(err: MetadataError) -> Error {
-        Error::MetadataError(err)
+        Error::Metadata(err)
     }
 }
 

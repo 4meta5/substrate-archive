@@ -32,8 +32,8 @@ table! {
         module -> Varchar,
         call -> Varchar,
         parameters -> Nullable<Bytea>,
-        success -> Bool,
         in_index -> Int4,
+        transaction_version -> Int4,
     }
 }
 
@@ -45,10 +45,10 @@ table! {
         from_addr -> Bytea,
         to_addr -> Nullable<Bytea>,
         call -> Varchar,
-        success -> Bool,
         nonce -> Int4,
         tx_index -> Int4,
         signature -> Bytea,
+        transaction_version -> Int4,
     }
 }
 
