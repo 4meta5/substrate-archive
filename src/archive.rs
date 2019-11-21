@@ -72,7 +72,8 @@ where
         Ok(())
     }
 
-    // TODO return a float between 0 and 1 corresponding to percent of database that is up-to-date?
+    // TODO return a float between 0 and 1 corresponding to percent of
+    // database that is up-to-date?
     /// Verification task that ensures all blocks are in the database
     fn sync(
         db: Arc<Database>,
