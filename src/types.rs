@@ -16,13 +16,13 @@
 
 mod traits;
 
-use substrate_primitives::storage::StorageChangeSet;
+use chrono::{DateTime, TimeZone, Utc};
 use codec::Decode;
-use chrono::{DateTime, Utc, TimeZone};
-use substrate_primitives::storage::StorageData;
 use runtime_primitives::generic::{Block as BlockT, SignedBlock};
+use substrate_primitives::storage::StorageChangeSet;
+use substrate_primitives::storage::StorageData;
 
-pub use self::traits::{ExtractCall, System, ExtrinsicExt, ToDatabaseExtrinsic};
+pub use self::traits::{ExtractCall, ExtrinsicExt, System, ToDatabaseExtrinsic};
 
 use crate::error::Error;
 
@@ -46,15 +46,12 @@ pub enum Data<T: System> {
 // NewType for Header
 #[derive(Debug, PartialEq, Eq)]
 pub struct Header<T: System> {
-    inner: T::Header
+    inner: T::Header,
 }
 
 impl<T: System> Header<T> {
-
     pub fn new(header: T::Header) -> Self {
-        Self {
-            inner: header
-        }
+        Self { inner: header }
     }
 
     pub fn inner(&self) -> &T::Header {
@@ -65,15 +62,12 @@ impl<T: System> Header<T> {
 /// NewType for Block
 #[derive(Debug, PartialEq, Eq)]
 pub struct Block<T: System> {
-    inner: SubstrateBlock<T>
+    inner: SubstrateBlock<T>,
 }
 
 impl<T: System> Block<T> {
-
     pub fn new(block: SubstrateBlock<T>) -> Self {
-        Self {
-            inner: block
-        }
+        Self { inner: block }
     }
 
     pub fn inner(&self) -> &SubstrateBlock<T> {
@@ -84,11 +78,10 @@ impl<T: System> Block<T> {
 /// NewType for committing many blocks to the database at once
 #[derive(Debug, PartialEq, Eq)]
 pub struct BatchBlock<T: System> {
-    inner: Vec<SubstrateBlock<T>>
+    inner: Vec<SubstrateBlock<T>>,
 }
 
 impl<T: System> BatchBlock<T> {
-
     pub fn new(blocks: Vec<SubstrateBlock<T>>) -> Self {
         Self { inner: blocks }
     }
@@ -102,14 +95,13 @@ impl<T: System> BatchBlock<T> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Storage<T: System> {
     data: StorageData,
-    hash: T::Hash // TODO use T:Hash
+    hash: T::Hash, // TODO use T:Hash
 }
 
 impl<T> Storage<T>
 where
-    T: System
+    T: System,
 {
-
     pub fn new(data: StorageData, hash: T::Hash) -> Self {
         Self { data, hash }
     }
@@ -137,7 +129,7 @@ pub struct BatchStorage<T: System> {
 
 impl<T> BatchStorage<T>
 where
-    T: System
+    T: System,
 {
     pub fn new(data: Vec<Storage<T>>) -> Self {
         Self { inner: data }
@@ -155,11 +147,10 @@ where
 /// NewType for committing Events to the database
 #[derive(Debug, PartialEq, Eq)]
 pub struct Event<T: System> {
-    change_set: StorageChangeSet<T::Hash>
+    change_set: StorageChangeSet<T::Hash>,
 }
 
 impl<T: System> Event<T> {
-
     pub fn new(change_set: StorageChangeSet<T::Hash>) -> Self {
         Self { change_set }
     }
