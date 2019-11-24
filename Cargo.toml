@@ -57,12 +57,20 @@ paint-elections-phragmen = { git = "https://github.com/paritytech/substrate", pa
 paint-balances = { git = "https://github.com/paritytech/substrate", package = "paint-balances", branch = "polkadot-master"}
 derive_more = "0.15.0"
 
+[dependencies.polkadot-runtime]
+git = "https://github.com/insipx/polkadot"
+package = "polkadot-runtime"
+default-features = false
+branch = "insipx/archive-patches"
+features = ["std"]
+
 [patch.crates-io]
 jsonrpc-core-client = { git = "https://github.com/paritytech/jsonrpc", branch = "master", features = ["ws", "arbitrary_precision"] }
 jsonrpc-client-transports = { git = "https://github.com/paritytech/jsonrpc", branch = "master", features = ["ws", "arbitrary_precision"] }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc", branch = "master", features = ["arbitrary_precision"] }
 jsonrpc-derive = { git = "https://github.com/paritytech/jsonrpc", branch = "master" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc", branch = "master" }
+codec = { git = "https://github.com/insipx/parity-scale-codec", branch = "insipx/debugging", package = "parity-scale-codec" }
 
 [dev-dependencies]
 node-runtime = { git = "https://github.com/paritytech/substrate", package="node-runtime", branch="polkadot-master" }
