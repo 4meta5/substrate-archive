@@ -23,28 +23,28 @@
 // Get EVERYTHING WE NEED :)
 
 use log::trace;
+use pallet_aura::Call as AuraCall;
+use pallet_babe::Call as BabeCall;
+use pallet_balances::Call as BalancesCall;
+use pallet_elections_phragmen::Call as ElectionsPhragmenCall;
+use pallet_finality_tracker::Call as FinalityCall;
+use pallet_grandpa::Call as GrandpaCall;
+use pallet_im_online::Call as ImOnlineCall;
+use pallet_nicks::Call as NicksCall;
+use pallet_session::Call as SessionCall;
+use pallet_staking::{Call as StakingCall, RewardDestination};
+use pallet_sudo::Call as SudoCall;
+use pallet_timestamp::Call as TimestampCall;
+use pallet_treasury::Call as TreasuryCall;
+use runtime_system::Call as SystemCall;
+use serde::Serialize;
 use serde_json::{json, Value};
-use serde::{Serialize};
-use paint_aura::Call as AuraCall;
-use paint_timestamp::Call as TimestampCall;
-use paint_finality_tracker::Call as FinalityCall;
-use paint_sudo::Call as SudoCall;
-use paint_babe::Call as BabeCall;
-use paint_session::Call as SessionCall;
-use paint_im_online::Call as ImOnlineCall;
-use paint_staking::{Call as StakingCall, RewardDestination};
-use paint_grandpa::Call as GrandpaCall;
-use paint_treasury::Call as TreasuryCall;
-use paint_nicks::Call as NicksCall;
-use paint_elections_phragmen::Call as ElectionsPhragmenCall;
-use paint_balances::Call as BalancesCall;
-use paint_system::Call as SystemCall;
 // use runtime_support::dispatch::{IsSubType, Callable};
 use codec::Encode;
 
 use crate::error::Error;
 
-pub trait PaintExt: std::fmt::Debug {
+pub trait FrameExt: std::fmt::Debug {
     /// Seperates a call into it's name and parameters
     /// Parameters are SCALE encoded
     fn function(&self) -> Result<(CallName, Parameters), Error>; // name of the function as a string
@@ -65,15 +65,14 @@ type PaintResult<T> = Result<T, Error>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotHandled;
 
-
-impl PaintExt for NotHandled {
+impl FrameExt for NotHandled {
     fn function(&self) -> PaintResult<FunctionInfo> {
         Err(Error::UnhandledCallType)
     }
 }
 
 /*
-impl<T> PaintExt for AssetsCall<T> where T: paint_assets::Trait {
+impl<T> FrameExt for AssetsCall<T> where T: pallet_assets::Trait {
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             AssetsCall::balances(b) => {
@@ -84,27 +83,32 @@ impl<T> PaintExt for AssetsCall<T> where T: paint_assets::Trait {
 }
  */
 
-impl<T> PaintExt for AuraCall<T> where T: paint_aura::Trait {
+impl<T> FrameExt for AuraCall<T>
+where
+    T: pallet_aura::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({})))
-            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for BabeCall<T> where T: paint_babe::Trait {
+impl<T> FrameExt for BabeCall<T>
+where
+    T: pallet_babe::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({})))
-            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for BalancesCall<T> where T: paint_balances::Trait {
+impl<T> FrameExt for BalancesCall<T>
+where
+    T: pallet_balances::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             BalancesCall::transfer(dest, value) => {
@@ -113,7 +117,7 @@ impl<T> PaintExt for BalancesCall<T> where T: paint_balances::Trait {
                     { "value": value },
                 ]);
                 Ok(("transfer".into(), val))
-            },
+            }
             BalancesCall::set_balance(who, new_free, new_reserved) => {
                 let val = json!([
                     { "who": who.encode(), "encoded": true },
@@ -121,7 +125,7 @@ impl<T> PaintExt for BalancesCall<T> where T: paint_balances::Trait {
                     { "new_reserved": new_reserved }
                 ]);
                 Ok(("set_balance".into(), val))
-            },
+            }
             BalancesCall::force_transfer(source, dest, value) => {
                 let val = json!([
                     { "source": source.encode(), "encoded": true },
@@ -129,36 +133,30 @@ impl<T> PaintExt for BalancesCall<T> where T: paint_balances::Trait {
                     { "value": value }
                 ]);
                 Ok(("force_transfer".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({})))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for ElectionsPhragmenCall<T> where T: paint_elections_phragmen::Trait {
+impl<T> FrameExt for ElectionsPhragmenCall<T>
+where
+    T: pallet_elections_phragmen::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             ElectionsPhragmenCall::vote(votes, value) => {
-                let val = json!([
-                    { "votes": votes },
-                    { "value": value }
-                ]);
+                let val = json!([{ "votes": votes }, { "value": value }]);
                 Ok(("vote".into(), val))
-            },
-            ElectionsPhragmenCall::remove_voter() => {
-                Ok(("remove_voter".into(), json!({})))
-            },
+            }
+            ElectionsPhragmenCall::remove_voter() => Ok(("remove_voter".into(), json!({}))),
             ElectionsPhragmenCall::report_defunct_voter(target) => {
                 let val = json!([
                     { "target": target.encode(), "encoded": true }
                 ]);
                 Ok(("report_defunct_voter".into(), val))
-            },
-            ElectionsPhragmenCall::submit_candidacy() => {
-                Ok(("submit_candidacy".into(), json!({}) ))
-            },
+            }
+            ElectionsPhragmenCall::submit_candidacy() => Ok(("submit_candidacy".into(), json!({}))),
             /*ElectionsPhragmenCall::set_desired_member_count(count) => {
                 Ok(("set_desired_member_count".into(), vec![count.encode()].encode()))
             },*/
@@ -167,18 +165,19 @@ impl<T> PaintExt for ElectionsPhragmenCall<T> where T: paint_elections_phragmen:
                     {"who": who.encode(), "encoded": true }
                 ]);
                 Ok(("remove_member".into(), val))
-            },
+            }
             /*ElectionsPhragmenCall::set_term_duration(count) => {
                 Ok(("set_term_duration".into(), vec![count.encode()].encode()))
             },*/
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({})))
-            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for SessionCall<T> where T: paint_session::Trait {
+impl<T> FrameExt for SessionCall<T>
+where
+    T: pallet_session::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             SessionCall::set_keys(keys, proof) => {
@@ -187,49 +186,50 @@ impl<T> PaintExt for SessionCall<T> where T: paint_session::Trait {
                     { "proof": proof }
                 ]);
                 Ok(("set_keys".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
 // matching exhaustively on &__phantom_item allows the compiler to implicitly
 // check making sure all Call types are covered
-impl<T> PaintExt for TimestampCall<T> where T: paint_timestamp::Trait {
+impl<T> FrameExt for TimestampCall<T>
+where
+    T: pallet_timestamp::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             TimestampCall::set(time) => {
                 let val = json!([
                     { "time": time.encode(), "encoded": true }
                 ]);
-                Ok(("set".into(), val ))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
+                Ok(("set".into(), val))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for FinalityCall<T> where T: paint_finality_tracker::Trait {
+impl<T> FrameExt for FinalityCall<T>
+where
+    T: pallet_finality_tracker::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             FinalityCall::final_hint(block) => {
-                let val = json!([
-                    { "block": block }
-                ]);
+                let val = json!([{ "block": block }]);
                 Ok(("final_hint".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for ImOnlineCall<T> where T: paint_im_online::Trait {
+impl<T> FrameExt for ImOnlineCall<T>
+where
+    T: pallet_im_online::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             ImOnlineCall::heartbeat(heartbeat, signature) => {
@@ -238,47 +238,45 @@ impl<T> PaintExt for ImOnlineCall<T> where T: paint_im_online::Trait {
                     { "signature": signature.encode(), "encoded": true }
                 ]);
                 Ok(("im-online".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for NicksCall<T> where T: paint_nicks::Trait {
+impl<T> FrameExt for NicksCall<T>
+where
+    T: pallet_nicks::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             NicksCall::set_name(name) => {
-                let val = json!([
-                    { "name": name }
-                ]);
+                let val = json!([{ "name": name }]);
                 Ok(("set_name".into(), val))
-            },
-            NicksCall::clear_name() => {
-                Ok(("clear_name".into(), json!({}) ))
-            },
+            }
+            NicksCall::clear_name() => Ok(("clear_name".into(), json!({}))),
             NicksCall::kill_name(target) => {
                 let val = json!([
                     { "target": target.encode(), "encoded": true }
                 ]);
                 Ok(("kill_name".into(), val))
-            },
+            }
             NicksCall::force_name(target, name) => {
                 let val = json!([
                     { "name": name },
                     { "target": target.encode() }
                 ]);
                 Ok(("force_name".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({ }) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for StakingCall<T> where T: paint_staking::Trait {
+impl<T> FrameExt for StakingCall<T>
+where
+    T: pallet_staking::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             StakingCall::bond(controller, value, payee) => {
@@ -287,100 +285,86 @@ impl<T> PaintExt for StakingCall<T> where T: paint_staking::Trait {
                 enum RewardDestinationDef {
                     Staked,
                     Stash,
-                    Controller
+                    Controller,
                 }
                 #[derive(Serialize)]
                 struct Payee {
                     #[serde(with = "RewardDestinationDef")]
-                    payee: RewardDestination
+                    payee: RewardDestination,
                 }
-                let p = serde_json::to_string(&Payee { payee: *payee }).expect("payee should not fail to des; qed");
+                let p = serde_json::to_string(&Payee { payee: *payee })
+                    .expect("payee should not fail to des; qed");
                 let val = json!([
                     { "controller": controller.encode(), "encoded": true },
                     { "value": value },
                     { "payee": p }
                 ]);
                 Ok(("bond".into(), val))
-            },
-            StakingCall::bond_extra(max_additional) => {
-                let val = json!([
-                    { "max_additional": max_additional }
-                ]);
-                Ok(("bond_extra".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            StakingCall::bond_extra(max_additional) => {
+                let val = json!([{ "max_additional": max_additional }]);
+                Ok(("bond_extra".into(), val))
+            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for SystemCall<T> where T: paint_system::Trait {
+impl<T> FrameExt for SystemCall<T>
+where
+    T: runtime_system::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
-            SystemCall::fill_block() => {
-                Ok(("fill_block".into(), json!({}) ))
-            },
+            SystemCall::fill_block() => Ok(("fill_block".into(), json!({}))),
             SystemCall::remark(remark) => {
-                let val = json!([
-                    { "remark": remark }
-                ]);
+                let val = json!([{ "remark": remark }]);
                 Ok(("remark".into(), val))
-            },
-            SystemCall::set_heap_pages(pages) => {
-                let val = json!([
-                    { "pages": pages }
-                ]);
-                Ok(("set_heap_pages".into(), val))
-            },
-            SystemCall::set_code(new) => {
-                let val = json!([
-                    { "new": new }
-                ]);
-                Ok(("set_code".into(), val))
-            },
-            SystemCall::set_storage(items) => {
-                let val = json!([
-                    { "items": items }
-                ]);
-                Ok(("set_storage".into(), val))
-            },
-            SystemCall::kill_storage(keys) => {
-                let val = json!([
-                    { "keys": keys }
-                ]);
-                Ok(("kill_storage".into(), val))
-            },
-            SystemCall::kill_prefix(prefix) => {
-                let val = json!([
-                    { "prefix": prefix }
-                ]);
-                Ok(("kill_prefix".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            SystemCall::set_heap_pages(pages) => {
+                let val = json!([{ "pages": pages }]);
+                Ok(("set_heap_pages".into(), val))
+            }
+            SystemCall::set_code(new) => {
+                let val = json!([{ "new": new }]);
+                Ok(("set_code".into(), val))
+            }
+            SystemCall::set_storage(items) => {
+                let val = json!([{ "items": items }]);
+                Ok(("set_storage".into(), val))
+            }
+            SystemCall::kill_storage(keys) => {
+                let val = json!([{ "keys": keys }]);
+                Ok(("kill_storage".into(), val))
+            }
+            SystemCall::kill_prefix(prefix) => {
+                let val = json!([{ "prefix": prefix }]);
+                Ok(("kill_prefix".into(), val))
+            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for GrandpaCall<T> where T: paint_grandpa::Trait {
+impl<T> FrameExt for GrandpaCall<T>
+where
+    T: pallet_grandpa::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             GrandpaCall::report_misbehavior(report) => {
-                let val = json!([
-                    { "report": report }
-                ]);
+                let val = json!([{ "report": report }]);
                 Ok(("report_misbehavior".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for SudoCall<T> where T: paint_sudo::Trait {
+impl<T> FrameExt for SudoCall<T>
+where
+    T: pallet_sudo::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             SudoCall::sudo(proposal) => {
@@ -390,21 +374,22 @@ impl<T> PaintExt for SudoCall<T> where T: paint_sudo::Trait {
                 // let public_call: T::Proposal =
                 trace!("PROPOSAL: {:?}", proposal);
                 Ok(("sudo".into(), val))
-            },
+            }
             SudoCall::set_key(new) => {
                 let val = json!([
                     { "new": new.encode(), "encoded": true }
                 ]);
                 Ok(("set_key".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
 
-impl<T> PaintExt for TreasuryCall<T> where T: paint_treasury::Trait {
+impl<T> FrameExt for TreasuryCall<T>
+where
+    T: pallet_treasury::Trait,
+{
     fn function(&self) -> PaintResult<FunctionInfo> {
         match &self {
             TreasuryCall::propose_spend(value, beneficiary) => {
@@ -413,22 +398,16 @@ impl<T> PaintExt for TreasuryCall<T> where T: paint_treasury::Trait {
                     { "beneficiary": beneficiary.encode(), "encoded": true }
                 ]);
                 Ok(("propose_spend".into(), val))
-            },
-            TreasuryCall::reject_proposal(proposal_id) => {
-                let val = json!([
-                    { "proposal_id": proposal_id }
-                ]);
-                Ok(("reject_proposal".into(), val))
-            },
-            TreasuryCall::approve_proposal(proposal_id) => {
-                let val = json!([
-                    { "proposal_id": proposal_id }
-                ]);
-                Ok(("approve_proposal".into(), val))
-            },
-            &__phantom_item => {
-                Ok(("__phantom".into(), json!({}) ))
             }
+            TreasuryCall::reject_proposal(proposal_id) => {
+                let val = json!([{ "proposal_id": proposal_id }]);
+                Ok(("reject_proposal".into(), val))
+            }
+            TreasuryCall::approve_proposal(proposal_id) => {
+                let val = json!([{ "proposal_id": proposal_id }]);
+                Ok(("approve_proposal".into(), val))
+            }
+            &__phantom_item => Ok(("__phantom".into(), json!({}))),
         }
     }
 }
