@@ -22,7 +22,6 @@ mod archive;
 mod database;
 mod error;
 mod extrinsics;
-mod storage_archive;
 mod frame_ext;
 mod metadata;
 mod queries;

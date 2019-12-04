@@ -69,7 +69,6 @@ where
         T: Send + 'static,
         E: From<r2d2::Error> + From<task::JoinError> + Send + 'static,
     {
-        // TODO Remove unwrap()
         let pool = self.pool.clone();
         let mut fun = Some(fun);
         task::spawn_blocking(move || (fun.take().expect("Made it some; qed"))(pool.get()?)).await?

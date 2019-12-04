@@ -14,22 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::{ types::System, database::Database, rpc::Rpc, error::Error };
+use std::sync::Arc;
 
 /// manages getting and storing Substrate State
-pub struct Storage {
+pub struct StorageArchive<T: System> {
+    db: Arc<Database>,
+    rpc: Arc<Rpc<T>>
+}
+
+impl<T> StorageArchive<T> where T: System {
     /// Create new State Manager
-    pub fn new() -> Self {
-        unimplemented!()
+    pub fn new(db: Arc<Database>, rpc: Arc<Rpc<T>>) -> Self {
+        Self { db, rpc }
+    }
+
+    pub async fn run(&mut self) {
+        ()
     }
 
     /// Crawls any historical state and commits it to database
-    pub async fn sync() -> Result<(), ArchiveError> {
+    async fn sync() -> Result<(), Error> {
         Ok(())
     }
 
     /// Verify if all state that can be stored (From Substrate Chain) is stored
-    pub async fn verify() -> Result<bool, ArchiveError> {
+    pub async fn verify() -> Result<bool, Error> {
 
-        Ok(())
+        Ok(true)
     }
 }

@@ -14,28 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{types::System, rpc::Rpc, error::Error, database::Database};
+use crate::{types::{System, Data, BatchBlock}, rpc::Rpc, error::Error, database::Database};
+use futures::future;
+use substrate_rpc_primitives::{number::NumberOrHex};
+use runtime_primitives::traits::Header as _;
+use substrate_primitives::U256;
+use std::sync::Arc;
 
-pub struct BlocksArchive<T: System + Debug> {
+pub struct BlocksArchive<T: System> {
     db: Arc<Database>,
     rpc: Arc<Rpc<T>>,
     latest: u64,
 }
 
-impl<T> BlocksArchive<T> where T: System + Debug {
+impl<T> BlocksArchive<T> where T: System {
 
     /// Create new Blocks Archive
     pub fn new(db: Arc<Database>, rpc: Arc<Rpc<T>>) -> Self {
-        Self { db, rpc }
+        Self { db, rpc, latest: 0 }
+    }
+
+    /// Runs the 'sync', gathering historical blocks
+    pub async fn run(&mut self) {
+        match self.sync_loop().await {
+            Err(e) => log::error!("{:?}", e),
+            Ok(_) => ()
+        };
+    }
+
+    async fn sync_loop(&mut self) -> Result<(), Error> {
+        'sync: loop {
+            self.sync().await?;
+            if self.verify(Some(self.latest)).await? {
+                break 'sync;
+            } else {
+                continue 'sync;
+            }
+        }
+        Ok(())
     }
 
     /// Gather all historical block and commit them to the DB
-    pub async fn sync(&mut self) -> Result<(), Error> {
-        self.refresh_latest_block();
+    async fn sync(&mut self) -> Result<(), Error> {
+        self.refresh_latest_block().await?;
         let (db, rpc) = (self.db.clone(), self.rpc.clone());
 
-        let blocks = db.query_missing_blocks(Some(latest)).await?;
+        let blocks = db.query_missing_blocks(Some(self.latest)).await?;
 
+        // TODO there is probably a better way of doing this further down in the stack
         let mut futures = Vec::new();
         for chunk in blocks.chunks(100_000) {
             let b = chunk
@@ -51,26 +77,33 @@ impl<T> BlocksArchive<T> where T: System + Debug {
         }
 
         log::info!("inserting {} blocks", blocks.len());
-        let len = blocks.len();
         let b = db
             .insert(Data::BatchBlock(BatchBlock::<T>::new(blocks)))
             .await?;
         Ok(())
     }
 
-    async fn verify(&self, latest: Option<u64>) -> Result<bool, Error> {
-        let blocks = self.db.query_missing_blocks(latest).await?;
+    pub async fn verify(&self, latest: Option<u64>) -> Result<bool, Error> {
+        let latest = if let Some(h) = latest {
+            h
+        } else {
+            (*self.rpc.header(None).await?
+                .expect("Should always be a latest block; qed")
+                .number()).into()
+        };
+        let blocks = self.db.query_missing_blocks(Some(latest)).await?;
         Ok(blocks.len() == 0)
         // TODO can run other verification tasks, like
-        // checking if all extrinsics are in db, too
-        // and then print out what is missing
+        // checking if all extrinsics are in db
+        // and then report
     }
 
-    async fn refresh_latest_block(&mut self) {
-        let latest = rpc.clone().header(None).await?;
+    async fn refresh_latest_block(&mut self) -> Result<(), Error> {
+        let latest = self.rpc.header(None).await?;
         log::debug!("Latest Block: {:?}", latest);
         if let Some(h) = latest {
-            self.latest = u64::from(h.number())
+            self.latest = (*h.number()).into();
         }
+        Ok(())
     }
 }

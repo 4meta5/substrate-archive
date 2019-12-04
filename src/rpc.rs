@@ -19,12 +19,12 @@ use self::substrate_rpc::SubstrateRpc;
 
 use futures::{
     channel::mpsc::UnboundedSender,
-    future::{self, FutureExt, TryFutureExt},
+    future::{self, FutureExt},
     stream::StreamExt,
 };
 use log::{debug, error, trace, warn};
-use runtime_primitives::traits::Header as HeaderTrait;
-use substrate_primitives::{storage::StorageKey, twox_128};
+use runtime_primitives::traits::Header as _;
+use substrate_primitives::storage::StorageKey;
 // use substrate_rpc_api::system::Properties;
 use substrate_rpc_primitives::{list::ListOrValue, number::NumberOrHex};
 
@@ -105,6 +105,13 @@ where
         })
     }
 
+    /// Get a Header corresponding to the Hash
+    /// passing in `None` returns the latest header that the node has stored
+    pub(crate) async fn header(&self, hash: Option<T::Hash>) -> Result<Option<T::Header>, ArchiveError> {
+        let client = self.client().await?;
+        client.header(hash).await
+    }
+
     /// get the latest block
     pub(crate) async fn latest_block(&self) -> Result<Option<SubstrateBlock<T>>, ArchiveError> {
         let client = self.client().await?;
@@ -117,12 +124,6 @@ where
                 ))
             }
         }
-    }
-
-    /// get just the latest header
-    pub(crate) async fn latest_head(&self) -> Result<Option<T::Header>, ArchiveError> {
-        let client = self.client().await?;
-        client.header(None).await
     }
 
     pub async fn client(&self) -> Result<SubstrateRpc<T>, ArchiveError> {

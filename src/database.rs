@@ -21,7 +21,6 @@ pub mod models;
 pub mod schema;
 
 use async_trait::async_trait;
-use codec::Decode;
 use diesel::{pg::PgConnection, prelude::*, sql_types::BigInt};
 use dotenv::dotenv;
 use log::*;
@@ -122,9 +121,8 @@ where
         // use self::schema::blocks::dsl::{blocks, hash, time};
         let date_time = self.get_timestamp()?;
         let hsh = self.hash().clone();
-        db.run(move |conn| {
+        db.run(move |_conn| {
             trace!("inserting timestamp for: {}", hsh);
-            let len = 1;
             // WARN this just inserts a timestamp
             /*
             diesel::update(blocks.filter(hash.eq(hsh.as_ref())))
@@ -190,7 +188,7 @@ where
                 .execute(&conn)?;
 
             let (mut signed_ext, mut unsigned_ext) = (Vec::new(), Vec::new());
-            let len = extrinsics.0.len() + 1; // 1 for the block
+
             for e in extrinsics.0.into_iter() {
                 match e {
                     DbExtrinsic::Signed(e) => signed_ext.push(e),

@@ -71,9 +71,7 @@ pub trait System: Send + Sync + 'static + Debug {
         + Eq
         + PartialEq
         + Unpin;
-    // require Iter
 
-    // type Block: BlockTrait + Encode + Decode + Debug;
     type Signature: Encode + Decode + Debug;
     type Address: Encode + Decode + Debug;
 

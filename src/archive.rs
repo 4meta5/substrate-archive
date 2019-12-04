@@ -17,23 +17,24 @@
 //! Spawning of all tasks happens in this module
 //! Nowhere else is anything ever spawned
 
+mod blocks_archive;
+mod storage_archive;
+
 use futures::{
     channel::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    future, FutureExt, StreamExt, TryFutureExt,
+    future, StreamExt, TryFutureExt,
 };
 use log::*;
-use runtime_primitives::traits::Header;
-use substrate_primitives::U256;
-use substrate_rpc_primitives::number::NumberOrHex;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 
-use std::{fmt::Debug, marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
+use self::{blocks_archive::BlocksArchive, storage_archive::StorageArchive};
 use crate::{
     database::Database,
     error::Error as ArchiveError,
     rpc::Rpc,
-    types::{BatchBlock, Data, System},
+    types::{Data, System},
 };
 
 // with the hopeful and long-anticipated release of async-await
@@ -48,10 +49,14 @@ where
     T: System,
 {
     pub fn new() -> Result<Self, ArchiveError> {
-        let mut runtime = Runtime::new()?;
+        let mut runtime = Builder::new()
+            .thread_name("archive-worker")
+            .num_threads(12)
+            .threaded_scheduler()
+            .build()?;
         let rpc = runtime.block_on(Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?))?;
-        let db = Database::new()?;
-        let (rpc, db) = (Arc::new(rpc), Arc::new(db));
+        let (rpc, db) = (Arc::new(rpc), Arc::new(Database::new()?));
+
         log::debug!("METADATA: {}", rpc.metadata());
         log::debug!("KEYS: {:?}", rpc.keys());
         // log::debug!("PROPERTIES: {:?}", rpc.properties());
@@ -62,15 +67,17 @@ where
         let (sender, receiver) = mpsc::unbounded();
         let data_in = Self::handle_data(receiver, self.db.clone());
         let blocks = Self::blocks(self.rpc.clone(), sender.clone());
-        // .map_err(|e| log::error!("{:?}", e));
-        let sync = Self::sync(self.rpc.clone(), self.db.clone()).map_err(|e| error!("{:?}", e));
-        let handle = self.runtime.spawn(sync);
+        let handle = self
+            .runtime
+            .spawn(Self::sync(self.rpc.clone(), self.db.clone()));
         self.runtime.block_on(future::join(data_in, blocks));
         self.runtime.block_on(handle);
         log::info!("All Done");
         Ok(())
     }
 
+    /// General block subscription thread
+    /// adds to database on-the-fly
     async fn blocks(rpc: Arc<Rpc<T>>, sender: UnboundedSender<Data<T>>) {
         match rpc.subscribe_blocks(sender).await {
             Ok(_) => (),
@@ -78,16 +85,14 @@ where
         };
     }
 
-    /// Verification task that ensures all blocks are in the database
-    async fn sync(rpc: Arc<Rpc<T>>, db: Arc<Database>) -> Result<(), ArchiveError> {
-        'sync: loop {
-            let (db, rpc) = (db.clone(), rpc.clone());
-            let (sync, done) = Sync::default().sync(db.clone(), rpc.clone()).await?;
-            if done {
-                break 'sync;
-            }
-        }
-        Ok(())
+    /// Sync thread
+    /// for syncing missing/historical state/blocks/storage
+    async fn sync(rpc: Arc<Rpc<T>>, db: Arc<Database>) {
+        let (mut blocks, mut storage) = (
+            BlocksArchive::new(db.clone(), rpc.clone()),
+            StorageArchive::new(db.clone(), rpc.clone()),
+        );
+        future::join(blocks.run(), storage.run()).await;
     }
 
     async fn handle_data(mut receiver: UnboundedReceiver<Data<T>>, db: Arc<Database>) {
@@ -103,84 +108,5 @@ where
                 }
             }
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct Sync<T: System + Debug> {
-    looped: usize,
-    _marker: PhantomData<T>,
-}
-
-impl<T> Default for Sync<T>
-where
-    T: System + Debug,
-{
-    fn default() -> Self {
-        Self {
-            looped: 0,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Sync<T>
-where
-    T: System + Debug,
-{
-    async fn sync(self, db: Arc<Database>, rpc: Arc<Rpc<T>>) -> Result<(Self, bool), ArchiveError>
-where {
-        let blocks_done = Self::blocks(db.clone(), rpc.clone()).await?;
-        let state_done = Self::state(db.clone(), rpc.clone()).await?;
-
-        let looped = self.looped + 1;
-        log::info!("Looped: {}", looped);
-        let done = blocks_done && state_done;
-        Ok((
-            Self {
-                looped,
-                _marker: PhantomData,
-            },
-            done,
-        ))
-    }
-
-    /// Crawl all state
-    async fn state(db: Arc<Database>, rpc: Arc<Rpc<T>>) -> Result<bool, ArchiveError> {
-        Ok(true)
-    }
-
-    async fn blocks(db: Arc<Database>, rpc: Arc<Rpc<T>>) -> Result<bool, ArchiveError> {
-        let latest = rpc.clone().latest_block().await?;
-        log::debug!("Latest Block: {:?}", latest);
-        let latest = *latest
-            .expect("should always be a latest; qed")
-            .block
-            .header
-            .number();
-
-        let blocks = db.query_missing_blocks(Some(latest.into())).await?;
-        let mut futures = Vec::new();
-        log::info!("Fetching {} blocks from rpc", blocks.len());
-        let rpc0 = rpc.clone();
-        for chunk in blocks.chunks(100_000) {
-            let b = chunk
-                .iter()
-                .map(|b| NumberOrHex::Hex(U256::from(*b)))
-                .collect::<Vec<NumberOrHex<T::BlockNumber>>>();
-            futures.push(rpc.batch_block_from_number(b));
-        }
-
-        let mut blocks = Vec::new();
-        for chunk in future::join_all(futures).await.into_iter() {
-            blocks.extend(chunk?.into_iter());
-        }
-
-        log::info!("inserting {} blocks", blocks.len());
-        let len = blocks.len();
-        let b = db
-            .insert(Data::BatchBlock(BatchBlock::<T>::new(blocks)))
-            .await?;
-        Ok(len == 0)
     }
 }

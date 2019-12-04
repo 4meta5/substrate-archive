@@ -18,7 +18,7 @@ futures01 = { version = "0.1" }
 futures = { version = "0.3.1", features = ["compat", "async-await"] }
 futures-util = "0.3.1"
 async-trait = "0.1.17"
-tokio = { version = "0.2.1", features = ["rt-core", "blocking"] }
+tokio = { version = "0.2.1", features = ["rt-core", "blocking", "rt-threaded"] }
 failure = "0.1"
 chrono = "0.4"
 primitive-types = "0.5"

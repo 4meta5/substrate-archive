@@ -182,7 +182,7 @@ pub enum Module {
     Authorship,
     Babe,
     Balances,
-    Collective,
+    Collective(String),
     Contracts,
     Democracy,
     Elections,

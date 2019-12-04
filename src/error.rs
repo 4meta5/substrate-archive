@@ -24,9 +24,11 @@ use crate::metadata::Error as MetadataError;
 use diesel::result::{ConnectionError, Error as DieselError};
 use r2d2::Error as R2d2Error;
 use serde_json::Error as SerdeError;
-use std::env::VarError as EnvironmentError;
-use std::io::Error as IoError;
-use std::num::TryFromIntError;
+use std::{
+    env::VarError as EnvironmentError,
+    io::Error as IoError,
+    num::TryFromIntError,
+};
 use url::ParseError;
 
 #[derive(Debug, Fail)]
@@ -55,6 +57,8 @@ pub enum Error {
     DbPool(#[fail(cause)] R2d2Error),
     #[fail(display = "Int Conversion Error: {}", _0)]
     IntConversion(#[fail(cause)] TryFromIntError),
+    #[fail(display = "Conversion {}", _0)]
+    Conversion(String),
     #[fail(display = "Serialization: {}", _0)]
     Serialize(#[fail(cause)] SerdeError),
 
@@ -70,6 +74,8 @@ pub enum Error {
     UnexpectedType(String),
     #[fail(display = "Metadata {}", _0)]
     Metadata(MetadataError),
+    #[fail(display = "Tuple {}", _0)]
+    Tuple(String)
 }
 
 impl From<JoinError> for Error {
