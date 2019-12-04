@@ -13,33 +13,3 @@
 
 // You should have received a copy of the GNU General Public License
 // along with substrate-archive.  If not, see <http://www.gnu.org/licenses/>.
-
-#![feature(async_closure)]
-
-#[macro_use]
-extern crate diesel;
-mod archive;
-mod database;
-mod error;
-mod extrinsics;
-mod storage_archive;
-mod frame_ext;
-mod metadata;
-mod queries;
-#[cfg(test)]
-mod tests;
-mod types;
-mod util;
-
-pub use archive::Archive;
-pub use error::Error;
-pub use extrinsics::{OldExtrinsic, RawExtrinsic};
-pub use frame_ext::{FrameExt, NotHandled};
-pub use types::{ExtractCall, Module, System, ToDatabaseExtrinsic};
-
-pub mod rpc;
-pub mod frame {
-    pub use frame_system;
-    pub use pallet_sudo;
-}
-pub use util::init_logger;
