@@ -15,6 +15,7 @@ runtime-primitives = { git = "https://github.com/paritytech/substrate/", package
 substrate-archive = { path = "../" }
 serde = {  version = "1.0.41", features = ["derive"] }
 serde_json = { version = "1.0.41", features = ["arbitrary_precision"] }
+collective = { git = "https://github.com/paritytech/substrate", package = "pallet-collective", branch = "polkadot-master" }
 
 [dependencies.polkadot-primitives]
 # path = "../../polkadot/primitives"

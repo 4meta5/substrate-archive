@@ -62,7 +62,7 @@ where
         let version = version & 0b0111_1111;
         let signature = if is_signed {
             Some(Decode::decode(input).map_err(|e| {
-                log::warn!("Error decoding signature");
+                log::debug!("Error decoding signature");
                 e
             })?)
         } else {
@@ -86,7 +86,7 @@ where
 
         log::trace!("bytes read from decoding extrinsic: {:X?}", bytes);
         let function = Decode::decode(&mut bytes.as_slice()).map_err(|e| {
-            log::warn!("Error decoding call");
+            log::trace!("Error decoding call");
             e
         })?;
         Ok(Self {

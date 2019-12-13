@@ -27,6 +27,7 @@ use runtime_primitives::{
     OpaqueExtrinsic,
     // generic::UncheckedExtrinsic,
 };
+use collective::Call as CollectiveCall;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use substrate_archive::{
@@ -41,7 +42,7 @@ use std::fmt::Debug;
 
 fn main() -> Result<(), Error> {
     // convenience log function from substrate_archive which logs to .local/share/substrate_archive
-    init_logger(log::LevelFilter::Warn, log::LevelFilter::Debug);
+    init_logger(log::LevelFilter::Warn, log::LevelFilter::Trace);
     Archive::<Runtime>::new()?.run()?;
     Ok(())
 }
@@ -97,8 +98,8 @@ impl ExtractCall for CallWrapper {
             Call::Babe(call) => (Module::Babe, Box::new(call.clone())),
             Call::Balances(call) => (Module::Balances, Box::new(call.clone())),
             Call::Democracy(call) => (Module::Democracy, Box::new(call.clone())),
-            Call::Council(call) => (Module::Collective("Council".into()), Box::new(call.clone())),
-            Call::TechnicalCommittee(call) => (Module::Collective("TechnicalCommittee".into()), Box::new(call.clone())),
+            Call::Council(call) => (Module::Collective("Council".into()), Box::new(CouncilCallWrapper(call.clone()))),
+            Call::TechnicalCommittee(call) => (Module::Collective("TechnicalCommittee".into()), Box::new(TechnicalCommitteeCallWrapper(call.clone()))),
             Call::ElectionsPhragmen(call) => (Module::ElectionsPhragmen, Box::new(call.clone())),
             Call::Staking(call) => (Module::Staking, Box::new(call.clone())),
             // Call::Sudo(call) => (Module::Sudo, Box::new(call.clone())),
@@ -126,6 +127,85 @@ impl ExtractCall for CallWrapper {
         }
     }
 }
+
+// This technical stuff is probably easiest to make into a macro
+// Literally the same `fn func` for every instance.
+// As long as the instance is specified
+
+#[derive(Debug)]
+pub struct CouncilCallWrapper(CollectiveCall<RuntimeT, collective::Instance1>);
+
+impl FrameExt for CouncilCallWrapper {
+    fn function(&self) -> Result<(String, Value), ArchiveError> {
+        match &self.0 {
+            CollectiveCall::set_members(new_members) => {
+                let val = json!([{ "new_members": new_members }]);
+
+                Ok(("propose".into(), val))
+            }
+            CollectiveCall::execute(proposal) => {
+                let val = json!([{ "proposal": proposal.encode(), "encoded": true }]);
+
+                Ok(("execute".into(), val))
+            }
+            CollectiveCall::propose(threshold, proposal) => {
+                let val = json!([
+                    { "threshold": threshold },
+                    { "proposal": proposal.encode(), "encoded": true }
+                ]);
+
+                Ok(("propose".into(), val))
+            }
+            CollectiveCall::vote(proposal, index, approve) => {
+                let val = json!([{ "proposal": proposal }, { "index": index }, {
+                    "approve": approve
+                }]);
+
+                Ok(("vote".into(), val))
+            }
+            __phantom_item => Ok(("__phantom".into(), json!({}))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TechnicalCommitteeCallWrapper(CollectiveCall<RuntimeT, collective::Instance2>);
+impl FrameExt for TechnicalCommitteeCallWrapper {
+    fn function(&self) -> Result<(String, Value), ArchiveError> {
+        match &self.0 {
+            CollectiveCall::set_members(new_members) => {
+                let val = json!([{ "new_members": new_members }]);
+
+                Ok(("propose".into(), val))
+            }
+            CollectiveCall::execute(proposal) => {
+                let val = json!([{ "proposal": proposal.encode(), "encoded": true }]);
+
+                Ok(("execute".into(), val))
+            }
+            CollectiveCall::propose(threshold, proposal) => {
+                let val = json!([
+                    { "threshold": threshold },
+                    { "proposal": proposal.encode(), "encoded": true }
+                ]);
+
+                Ok(("propose".into(), val))
+            }
+            CollectiveCall::vote(proposal, index, approve) => {
+                let val = json!([{ "proposal": proposal }, { "index": index }, {
+                    "approve": approve
+                }]);
+
+                Ok(("vote".into(), val))
+            }
+            __phantom_item => Ok(("__phantom".into(), json!({}))),
+        }
+    }
+}
+
+
+
+
 
 // Sudo module should be implemented manually because it wraps other calls
 // this enables the wrapped calls to also be decoded

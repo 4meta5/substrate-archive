@@ -57,7 +57,7 @@ where
         let rpc = runtime.block_on(Rpc::<T>::new(url::Url::parse("ws://127.0.0.1:9944")?))?;
         let (rpc, db) = (Arc::new(rpc), Arc::new(Database::new()?));
 
-        log::debug!("METADATA: {}", rpc.metadata());
+        log::debug!("METADATA:\n {}", rpc.metadata());
         log::debug!("KEYS: {:?}", rpc.keys());
         // log::debug!("PROPERTIES: {:?}", rpc.properties());
         Ok(Self { rpc, db, runtime })

@@ -84,6 +84,32 @@ impl Metadata {
             .ok_or(MetadataError::EventNotFound(module_index))
     }
 
+    pub fn detailed_pretty(&self) -> String {
+        let mut string = String::new();
+        for (name, module) in &self.modules {
+            string.push_str(name.as_str());
+            string.push('\n');
+            for (storage, meta) in &module.storage {
+                string.push_str(" S  ");
+                string.push_str(storage.as_str());
+                string.push_str(format!(" TYPE {:?}", meta.ty).as_str());
+                string.push_str(format!(" MOD {:?}", meta.modifier).as_str());
+                string.push('\n');
+            }
+            for (call, _) in &module.calls {
+                string.push_str(" C  ");
+                string.push_str(call.as_str());
+                string.push('\n');
+            }
+            for (_, event) in &module.events {
+                string.push_str(" E  ");
+                string.push_str(event.name.as_str());
+                string.push('\n');
+            }
+        }
+        string
+    }
+
     pub fn pretty(&self) -> String {
         let mut string = String::new();
         for (name, module) in &self.modules {

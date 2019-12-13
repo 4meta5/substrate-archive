@@ -35,7 +35,7 @@ pub struct Metadata {
 
 impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.pretty())
+        write!(f, "{}", self.inner.detailed_pretty())
     }
 }
 

@@ -100,6 +100,7 @@ where
         let metadata_bytes = self.state.metadata(hash).compat().await?;
         let metadata: RuntimeMetadataPrefixed =
             Decode::decode(&mut &metadata_bytes[..]).expect("Decode failed");
+        log::trace!("Runtime Prefixed: {:#?}", metadata);
         metadata.try_into().map_err(Into::into)
     }
 
